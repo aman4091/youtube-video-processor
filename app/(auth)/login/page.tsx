@@ -25,12 +25,29 @@ export default function LoginPage() {
     const fetchUsers = async () => {
       try {
         const fetchedUsers = await getAllUsers();
-        setUsers(fetchedUsers);
+
         if (fetchedUsers.length > 0) {
+          setUsers(fetchedUsers);
           setSelectedUser(fetchedUsers[0].username);
+        } else {
+          // Fallback: Use default users if database is empty
+          const defaultUsers = [
+            { id: '1', username: 'User1', created_at: new Date().toISOString() },
+            { id: '2', username: 'User2', created_at: new Date().toISOString() },
+          ];
+          setUsers(defaultUsers);
+          setSelectedUser(defaultUsers[0].username);
+          setError('Using default users. Please configure Supabase properly.');
         }
       } catch (err) {
-        setError('Failed to load users. Please refresh the page.');
+        // Fallback: Use default users if database connection fails
+        const defaultUsers = [
+          { id: '1', username: 'User1', created_at: new Date().toISOString() },
+          { id: '2', username: 'User2', created_at: new Date().toISOString() },
+        ];
+        setUsers(defaultUsers);
+        setSelectedUser(defaultUsers[0].username);
+        setError('Database connection failed. Using default users. Please check Supabase settings.');
         console.error('Error fetching users:', err);
       } finally {
         setLoading(false);
