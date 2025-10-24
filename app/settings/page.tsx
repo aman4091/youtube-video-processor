@@ -43,7 +43,7 @@ export default function SettingsPage() {
   const [telegramBotToken, setTelegramBotToken] = useState('');
   const [telegramChatId, setTelegramChatId] = useState('');
   const [promptTemplate, setPromptTemplate] = useState('');
-  const [supadata Keys, setSupadataKeys] = useState<SupadataApiKey[]>([]);
+  const [supadataKeys, setSupadataKeys] = useState<SupadataApiKey[]>([]);
   const [newSupadataKey, setNewSupadataKey] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -169,7 +169,7 @@ export default function SettingsPage() {
   const handleDeleteSupadataKey = async (id: string) => {
     const success = await deleteSupadataApiKey(id);
     if (success) {
-      setSupadataKeys(supadata Keys.filter((k) => k.id !== id));
+      setSupadataKeys(supadataKeys.filter((k) => k.id !== id));
       toast.success('API key deleted');
     } else {
       toast.error('Failed to delete API key');
@@ -311,7 +311,7 @@ export default function SettingsPage() {
         </h2>
 
         <div className="space-y-3 mb-4">
-          {supadata Keys.map((key, index) => (
+          {supadataKeys.map((key, index) => (
             <div
               key={key.id}
               className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg"
