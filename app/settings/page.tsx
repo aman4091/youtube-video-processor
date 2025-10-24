@@ -20,6 +20,8 @@ import {
   MessageSquare,
   Server,
   FileText,
+  User,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { SourceChannel, SupadataApiKey } from '@/types';
@@ -103,7 +105,7 @@ export default function SettingsPage() {
     }
 
     try {
-      const durationSeconds = parseInt(newChannel.duration) * 60; // Convert minutes to seconds
+      const durationSeconds = parseInt(newChannel.duration) * 60;
       const channel = await addSourceChannel(
         user.id,
         newChannel.url,
@@ -178,267 +180,304 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
+        <div className="text-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-700 border-t-indigo-500 mx-auto"></div>
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 opacity-20 blur-xl"></div>
+          </div>
+          <p className="mt-6 text-gray-400 font-medium">Loading settings...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Settings</h1>
-        <p className="text-gray-600 mt-1">Configure your preferences and API keys</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent mb-2">
+            Settings
+          </h1>
+          <p className="text-gray-400 flex items-center gap-2">
+            <SettingsIcon className="h-4 w-4" />
+            Configure your preferences and API keys
+          </p>
+        </div>
 
-      {/* User-Specific Settings */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Youtube className="h-6 w-6 text-indigo-600" />
-          User Settings
-        </h2>
+        <div className="space-y-6">
+          {/* User-Specific Settings */}
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500/20 to-purple-600/20 rounded-xl flex items-center justify-center">
+                <User className="h-5 w-5 text-indigo-400" />
+              </div>
+              User Settings
+            </h2>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Videos Per Day
-            </label>
-            <input
-              type="number"
-              value={videosPerDay}
-              onChange={(e) => setVideosPerDay(parseInt(e.target.value) || 16)}
-              min="1"
-              max="100"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  Videos Per Day
+                </label>
+                <input
+                  type="number"
+                  value={videosPerDay}
+                  onChange={(e) => setVideosPerDay(parseInt(e.target.value) || 16)}
+                  min="1"
+                  max="100"
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                />
+              </div>
+
+              <button
+                onClick={handleSaveUserSettings}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 transform hover:scale-105"
+              >
+                <Save className="h-4 w-4" />
+                Save User Settings
+              </button>
+            </div>
           </div>
 
-          <button
-            onClick={handleSaveUserSettings}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            Save User Settings
-          </button>
-        </div>
-      </div>
+          {/* Source Channels */}
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-red-500/20 to-pink-600/20 rounded-xl flex items-center justify-center">
+                <Youtube className="h-5 w-5 text-red-400" />
+              </div>
+              Source Channels (User-Specific)
+            </h2>
 
-      {/* Source Channels */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Source Channels (User-Specific)
-        </h2>
+            {/* Existing Channels */}
+            <div className="space-y-3 mb-6">
+              {channels.map((channel) => (
+                <div
+                  key={channel.id}
+                  className="flex items-center gap-3 p-4 bg-slate-700/30 border border-slate-600/30 rounded-xl group hover:border-indigo-500/30 transition-all"
+                >
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Channel URL</p>
+                      <p className="font-medium text-white truncate">{channel.channel_url}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Min Duration</p>
+                      <p className="font-medium text-white">
+                        {Math.floor(channel.min_duration_seconds / 60)} minutes
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Reference Audio</p>
+                      <p className="font-medium text-white truncate">{channel.reference_audio_url}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteChannel(channel.id)}
+                    className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
 
-        {/* Existing Channels */}
-        <div className="space-y-3 mb-4">
-          {channels.map((channel) => (
-            <div
-              key={channel.id}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg"
-            >
-              <div className="flex-1 grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-gray-600">Channel URL</p>
-                  <p className="font-medium truncate">{channel.channel_url}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Min Duration</p>
-                  <p className="font-medium">
-                    {Math.floor(channel.min_duration_seconds / 60)} minutes
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600">Reference Audio</p>
-                  <p className="font-medium truncate">{channel.reference_audio_url}</p>
-                </div>
+            {/* Add New Channel */}
+            <div className="border-t border-slate-700/50 pt-6">
+              <h3 className="font-semibold text-white mb-4">Add New Channel</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <input
+                  type="text"
+                  placeholder="YouTube Channel URL"
+                  value={newChannel.url}
+                  onChange={(e) => setNewChannel({ ...newChannel, url: e.target.value })}
+                  className="px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+                <input
+                  type="number"
+                  placeholder="Min Duration (minutes)"
+                  value={newChannel.duration}
+                  onChange={(e) =>
+                    setNewChannel({ ...newChannel, duration: e.target.value })
+                  }
+                  className="px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+                <input
+                  type="text"
+                  placeholder="Reference Audio URL"
+                  value={newChannel.referenceAudio}
+                  onChange={(e) =>
+                    setNewChannel({ ...newChannel, referenceAudio: e.target.value })
+                  }
+                  className="px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
               </div>
               <button
-                onClick={() => handleDeleteChannel(channel.id)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                onClick={handleAddChannel}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all transform hover:scale-105"
               >
-                <Trash2 className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
+                Add Channel
               </button>
             </div>
-          ))}
-        </div>
-
-        {/* Add New Channel */}
-        <div className="border-t pt-4">
-          <h3 className="font-medium text-gray-800 mb-3">Add New Channel</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-            <input
-              type="text"
-              placeholder="YouTube Channel URL"
-              value={newChannel.url}
-              onChange={(e) => setNewChannel({ ...newChannel, url: e.target.value })}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-            <input
-              type="number"
-              placeholder="Min Duration (minutes)"
-              value={newChannel.duration}
-              onChange={(e) =>
-                setNewChannel({ ...newChannel, duration: e.target.value })
-              }
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-            <input
-              type="text"
-              placeholder="Reference Audio URL"
-              value={newChannel.referenceAudio}
-              onChange={(e) =>
-                setNewChannel({ ...newChannel, referenceAudio: e.target.value })
-              }
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
           </div>
-          <button
-            onClick={handleAddChannel}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            Add Channel
-          </button>
-        </div>
-      </div>
 
-      {/* Supadata API Keys */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Key className="h-6 w-6 text-indigo-600" />
-          Supadata API Keys (Shared)
-        </h2>
+          {/* Supadata API Keys */}
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-xl flex items-center justify-center">
+                <Key className="h-5 w-5 text-blue-400" />
+              </div>
+              Supadata API Keys (Shared)
+            </h2>
 
-        <div className="space-y-3 mb-4">
-          {supadataKeys.map((key, index) => (
-            <div
-              key={key.id}
-              className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg"
-            >
-              <span className="text-sm font-medium text-gray-600">
-                #{index + 1} (Priority: {key.priority})
-              </span>
-              <code className="flex-1 text-sm font-mono bg-gray-50 px-3 py-2 rounded">
-                {key.api_key.substring(0, 20)}...
-              </code>
+            <div className="space-y-3 mb-4">
+              {supadataKeys.map((key, index) => (
+                <div
+                  key={key.id}
+                  className="flex items-center gap-3 p-4 bg-slate-700/30 border border-slate-600/30 rounded-xl group hover:border-indigo-500/30 transition-all"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                      <span className="text-xs font-bold text-indigo-400">
+                        #{index + 1}
+                      </span>
+                    </div>
+                    <code className="flex-1 text-sm font-mono text-gray-300 bg-slate-900/50 px-4 py-2 rounded-lg truncate">
+                      {key.api_key.substring(0, 30)}...
+                    </code>
+                    <span className="text-xs text-gray-400">
+                      Priority: {key.priority}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSupadataKey(key.id)}
+                    className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="New Supadata API Key"
+                value={newSupadataKey}
+                onChange={(e) => setNewSupadataKey(e.target.value)}
+                className="flex-1 px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all font-mono text-sm"
+              />
               <button
-                onClick={() => handleDeleteSupadataKey(key.id)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                onClick={handleAddSupadataKey}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all"
               >
-                <Trash2 className="h-5 w-5" />
+                <Plus className="h-4 w-4" />
+                Add
               </button>
             </div>
-          ))}
-        </div>
-
-        <div className="flex gap-3">
-          <input
-            type="text"
-            placeholder="New Supadata API Key"
-            value={newSupadataKey}
-            onChange={(e) => setNewSupadataKey(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={handleAddSupadataKey}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-        </div>
-      </div>
-
-      {/* Shared API Settings */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          API Configuration (Shared)
-        </h2>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              YouTube API Key
-            </label>
-            <input
-              type="password"
-              value={youtubeApiKey}
-              onChange={(e) => setYoutubeApiKey(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              VastAI API Key
-            </label>
-            <input
-              type="password"
-              value={vastaiApiKey}
-              onChange={(e) => setVastaiApiKey(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          {/* Shared API Settings */}
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-pink-600/20 rounded-xl flex items-center justify-center">
+                <Server className="h-5 w-5 text-purple-400" />
+              </div>
+              API Configuration (Shared)
+            </h2>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              VastAI Commands (one per line)
-            </label>
-            <textarea
-              value={vastaiCommands}
-              onChange={(e) => setVastaiCommands(e.target.value)}
-              rows={6}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-              placeholder="cd /workspace&#10;git clone ...&#10;pip install ..."
-            />
-          </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  YouTube API Key
+                </label>
+                <input
+                  type="password"
+                  value={youtubeApiKey}
+                  onChange={(e) => setYoutubeApiKey(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="••••••••••••••••••"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Telegram Bot Token
-            </label>
-            <input
-              type="password"
-              value={telegramBotToken}
-              onChange={(e) => setTelegramBotToken(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  VastAI API Key
+                </label>
+                <input
+                  type="password"
+                  value={vastaiApiKey}
+                  onChange={(e) => setVastaiApiKey(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="••••••••••••••••••"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Telegram Chat ID
-            </label>
-            <input
-              type="text"
-              value={telegramChatId}
-              onChange={(e) => setTelegramChatId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  VastAI Commands (one per line)
+                </label>
+                <textarea
+                  value={vastaiCommands}
+                  onChange={(e) => setVastaiCommands(e.target.value)}
+                  rows={6}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="cd /workspace&#10;git clone ...&#10;pip install ..."
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Prompt Template
-            </label>
-            <textarea
-              value={promptTemplate}
-              onChange={(e) => setPromptTemplate(e.target.value)}
-              rows={6}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="Your processing prompt template..."
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  Telegram Bot Token
+                </label>
+                <input
+                  type="password"
+                  value={telegramBotToken}
+                  onChange={(e) => setTelegramBotToken(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="••••••••••••••••••"
+                />
+              </div>
 
-          <button
-            onClick={handleSaveSharedSettings}
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            Save Shared Settings
-          </button>
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  Telegram Chat ID
+                </label>
+                <input
+                  type="text"
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="123456789"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  Prompt Template
+                </label>
+                <textarea
+                  value={promptTemplate}
+                  onChange={(e) => setPromptTemplate(e.target.value)}
+                  rows={6}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="Your processing prompt template..."
+                />
+              </div>
+
+              <button
+                onClick={handleSaveSharedSettings}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 transform hover:scale-105"
+              >
+                <Save className="h-4 w-4" />
+                Save Shared Settings
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
