@@ -25,20 +25,23 @@ export async function POST(request: NextRequest) {
 
     console.log('VastAI: Starting instance rental process...', { instanceType });
 
-    // Search for available offers using the search endpoint (not bundles)
+    // Search for available offers - VastAI needs JSON dict for query
     const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
       },
       params: {
-        q: `gpu_name=${instanceType}`,
+        q: JSON.stringify({
+          verified: { eq: true },
+          rentable: { eq: true },
+        })
       }
     });
 
     console.log('VastAI: Search response received', {
       offersCount: searchResponse.data?.offers?.length || 0,
       responseType: typeof searchResponse.data,
-      queryUsed: `gpu_name=${instanceType}`
+      filter: 'verified + rentable instances'
     });
 
     let allOffers = searchResponse.data?.offers || [];
@@ -62,7 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter offers by GPU type, VRAM, location, and rentability
+    // Filter offers by GPU type, VRAM, and location (verified + rentable already filtered by API)
     const offers = allOffers
       .filter((offer: any) => {
         const matchesGPU = offer.gpu_name?.includes(instanceType);
@@ -70,24 +73,8 @@ export async function POST(request: NextRequest) {
         const inRegion = region === 'US' ?
           (offer.geolocation?.includes('US') || offer.geolocation?.includes('CA')) :
           true;
-        const isRentable = offer.rentable === true;
-        const isVerified = offer.verified === true;
 
-        // Debug each filter
-        if (!matchesGPU || !hasEnoughVRAM || !inRegion) {
-          console.log('VastAI: Offer filtered out', {
-            gpu: offer.gpu_name,
-            vram: offer.gpu_ram,
-            location: offer.geolocation,
-            matchesGPU,
-            hasEnoughVRAM,
-            inRegion,
-            isRentable,
-            isVerified
-          });
-        }
-
-        return matchesGPU && hasEnoughVRAM && inRegion && isRentable && isVerified;
+        return matchesGPU && hasEnoughVRAM && inRegion;
       })
       .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
 
