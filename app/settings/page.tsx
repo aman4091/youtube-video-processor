@@ -511,15 +511,18 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-300 mb-3">
-                  VastAI Commands (one per line)
+                  VastAI Commands <span className="text-gray-500 text-xs">(Optional - one per line)</span>
                 </label>
                 <textarea
                   value={vastaiCommands}
                   onChange={(e) => setVastaiCommands(e.target.value)}
                   rows={6}
                   className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
-                  placeholder="cd /workspace&#10;git clone ...&#10;pip install ..."
+                  placeholder="Optional: Add setup commands if needed&#10;cd /workspace&#10;git clone ...&#10;pip install ..."
                 />
+                <p className="text-xs text-gray-500 mt-2">
+                  Note: With Python scripts in database, setup commands are optional. Scripts will auto-upload and run.
+                </p>
               </div>
 
               <div>

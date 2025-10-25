@@ -45,11 +45,6 @@ export default function VastAIModal({
         return;
       }
 
-      if (!commandsStr) {
-        toast.error('VastAI commands not set. Please add them in Settings.');
-        return;
-      }
-
       addLog('Renting GPU instance...');
       const instance = await rentGPUInstance(vastaiKey);
       setInstanceId(instance.id);
@@ -87,19 +82,23 @@ export default function VastAIModal({
         return;
       }
 
-      // Execute commands
-      const commands = commandsStr.split('\n').filter((cmd) => cmd.trim());
-      addLog(`Executing ${commands.length} setup commands...`);
+      // Execute commands (optional - only if set)
+      if (commandsStr && commandsStr.trim()) {
+        const commands = commandsStr.split('\n').filter((cmd) => cmd.trim());
+        addLog(`Executing ${commands.length} setup commands...`);
 
-      const results = await executeCommands(vastaiKey, instance.id, commands);
+        const results = await executeCommands(vastaiKey, instance.id, commands);
 
-      results.forEach((result, index) => {
-        if (result.success) {
-          addLog(`✓ Command ${index + 1}: Success`);
-        } else {
-          addLog(`✗ Command ${index + 1}: Failed - ${result.output}`);
-        }
-      });
+        results.forEach((result, index) => {
+          if (result.success) {
+            addLog(`✓ Command ${index + 1}: Success`);
+          } else {
+            addLog(`✗ Command ${index + 1}: Failed - ${result.output}`);
+          }
+        });
+      } else {
+        addLog('No setup commands configured (skipping)');
+      }
 
       // Get instance status to get SSH details
       const finalStatus = await getInstanceStatus(vastaiKey, instance.id);
