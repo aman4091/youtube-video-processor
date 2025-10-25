@@ -89,9 +89,16 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
-      await updateUserSettings(user.id, { videos_per_day: videosPerDay });
-      toast.success('User settings saved');
+      console.log('Saving user settings:', { userId: user.id, videosPerDay });
+      const result = await updateUserSettings(user.id, { videos_per_day: videosPerDay });
+      console.log('Save result:', result);
+      if (result) {
+        toast.success('User settings saved');
+      } else {
+        toast.error('Failed to save user settings');
+      }
     } catch (error) {
+      console.error('Error saving user settings:', error);
       toast.error('Failed to save user settings');
     } finally {
       setSaving(false);
@@ -136,7 +143,8 @@ export default function SettingsPage() {
   const handleSaveSharedSettings = async () => {
     setSaving(true);
     try {
-      await Promise.all([
+      console.log('Saving shared settings...');
+      const results = await Promise.all([
         updateSharedSetting('youtube_api_key', youtubeApiKey),
         updateSharedSetting('vastai_api_key', vastaiApiKey),
         updateSharedSetting('vastai_commands', vastaiCommands),
@@ -144,8 +152,15 @@ export default function SettingsPage() {
         updateSharedSetting('telegram_chat_id', telegramChatId),
         updateSharedSetting('prompt_template', promptTemplate),
       ]);
-      toast.success('Shared settings saved');
+      console.log('Save results:', results);
+      const allSuccess = results.every(r => r === true);
+      if (allSuccess) {
+        toast.success('Shared settings saved');
+      } else {
+        toast.error('Some settings failed to save');
+      }
     } catch (error) {
+      console.error('Error saving shared settings:', error);
       toast.error('Failed to save shared settings');
     } finally {
       setSaving(false);

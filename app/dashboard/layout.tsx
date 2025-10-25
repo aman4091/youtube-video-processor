@@ -32,7 +32,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
       <Sidebar />
       <main className="p-4 md:p-8">
         {children}
