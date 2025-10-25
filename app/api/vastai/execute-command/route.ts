@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { getSharedSetting } from '@/lib/db/settings';
 
-const VASTAI_API_URL = 'https://cloud.vast.ai/api/v0';
+const VASTAI_API_URL = 'https://console.vast.ai/api/v0';
 
 export async function POST(request: NextRequest) {
   try {
