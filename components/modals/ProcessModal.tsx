@@ -25,6 +25,7 @@ export default function ProcessModal({
 }: ProcessModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState('');
   const [transcript, setTranscript] = useState('');
   const [processedScript, setProcessedScript] = useState('');
   const [promptTemplate, setPromptTemplate] = useState('');
@@ -42,9 +43,15 @@ export default function ProcessModal({
 
   useEffect(() => {
     if (currentItem && isOpen) {
+      console.log('[Modal] Current item changed:', currentItem.video?.title);
+      setLoadingStatus('');
+
       if (currentItem.transcript) {
+        console.log('[Modal] Using existing transcript');
         setTranscript(currentItem.transcript);
       } else {
+        console.log('[Modal] No existing transcript, fetching...');
+        setTranscript('');
         fetchCurrentTranscript();
       }
       setProcessedScript(currentItem.processed_script || '');
@@ -57,21 +64,35 @@ export default function ProcessModal({
   };
 
   const fetchCurrentTranscript = async () => {
-    if (!currentItem?.video) return;
+    if (!currentItem?.video) {
+      console.log('[Modal] No video found in current item');
+      return;
+    }
 
+    console.log('[Modal] Starting transcript fetch for video:', currentItem.video.video_id);
     setLoading(true);
+    setLoadingStatus('Fetching Supadata API key...');
+
     try {
       const apiKey = await getNextSupadataApiKey();
+      console.log('[Modal] Got API key:', apiKey ? 'Yes' : 'No');
+
       if (!apiKey) {
         toast.error('No active Supadata API key found. Add one in Settings.');
+        setLoadingStatus('No API key found');
         return;
       }
 
+      setLoadingStatus('Requesting transcript from Supadata...');
+      console.log('[Modal] Calling fetchTranscript with video ID:', currentItem.video.video_id);
+
       const result = await fetchTranscript(currentItem.video.video_id, apiKey.api_key);
+      console.log('[Modal] Fetch result:', result.error ? `Error: ${result.error}` : `Success, ${result.transcript.length} chars`);
 
       if (result.error) {
         if (result.error === 'API_KEY_EXHAUSTED') {
           toast.error('API key exhausted. Switching to next key...');
+          setLoadingStatus('Switching to next API key...');
           await markApiKeyExhausted(apiKey.id);
           await deleteSupadataApiKey(apiKey.id);
           // Retry with next key
@@ -79,9 +100,11 @@ export default function ProcessModal({
           return;
         }
         toast.error(result.error);
+        setLoadingStatus(`Error: ${result.error}`);
         return;
       }
 
+      setLoadingStatus('Saving transcript to database...');
       setTranscript(result.transcript);
 
       // Save transcript to database
@@ -90,10 +113,13 @@ export default function ProcessModal({
         transcript_chars: countCharacters(result.transcript),
       });
 
+      console.log('[Modal] Transcript saved successfully');
       toast.success('Transcript fetched successfully');
+      setLoadingStatus('');
     } catch (error: any) {
-      toast.error('Failed to fetch transcript');
-      console.error('Transcript error:', error);
+      console.error('[Modal] Transcript error:', error);
+      toast.error('Failed to fetch transcript: ' + error.message);
+      setLoadingStatus(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -200,8 +226,11 @@ export default function ProcessModal({
               </span>
             </div>
             {loading ? (
-              <div className="flex items-center justify-center p-8 bg-slate-800/30 border border-slate-700/30 rounded-xl">
+              <div className="flex flex-col items-center justify-center p-8 bg-slate-800/30 border border-slate-700/30 rounded-xl gap-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                {loadingStatus && (
+                  <p className="text-sm text-gray-400 animate-pulse">{loadingStatus}</p>
+                )}
               </div>
             ) : (
               <textarea
