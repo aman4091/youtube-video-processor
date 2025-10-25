@@ -8,7 +8,7 @@ import VideoCard from '@/components/VideoCard';
 import ProcessModal from '@/components/modals/ProcessModal';
 import VastAIModal from '@/components/modals/VastAIModal';
 import { formatDate, getTodayDate } from '@/lib/utils/helpers';
-import { RefreshCw, PlayCircle, Server, Sparkles } from 'lucide-react';
+import { RefreshCw, PlayCircle, Server, Sparkles, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { DailySchedule, UserSettings } from '@/types';
 
@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [processModalOpen, setProcessModalOpen] = useState(false);
   const [vastAIModalOpen, setVastAIModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchingVideos, setFetchingVideos] = useState(false);
 
   const fetchSchedule = async () => {
     if (!user) return;
@@ -49,6 +50,38 @@ export default function DashboardPage() {
   const handleRefresh = () => {
     fetchSchedule();
     toast.success('Schedule refreshed');
+  };
+
+  const handleFetchVideos = async () => {
+    if (!user) return;
+
+    setFetchingVideos(true);
+    const loadingToast = toast.loading('Fetching videos from YouTube...');
+
+    try {
+      const response = await fetch('/api/videos/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch videos');
+      }
+
+      const successCount = data.results.filter((r: any) => r.success).length;
+      const totalVideos = data.results.reduce((sum: number, r: any) => sum + (r.videosCount || 0), 0);
+
+      toast.success(`Videos fetched! ${successCount} channels, ${totalVideos} videos`, {
+        id: loadingToast,
+      });
+    } catch (error: any) {
+      toast.error(error.message, { id: loadingToast });
+    } finally {
+      setFetchingVideos(false);
+    }
   };
 
   const handleGenerateSchedule = async () => {
@@ -181,14 +214,24 @@ export default function DashboardPage() {
               No schedule for today
             </h3>
             <p className="text-gray-400 mb-8 max-w-md mx-auto">
-              Generate a new schedule to get started with processing videos
+              First fetch videos from your channels, then generate a schedule
             </p>
-            <button
-              onClick={handleGenerateSchedule}
-              className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all transform hover:scale-105"
-            >
-              Generate Schedule
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={handleFetchVideos}
+                disabled={fetchingVideos}
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className={`h-5 w-5 ${fetchingVideos ? 'animate-bounce' : ''}`} />
+                {fetchingVideos ? 'Fetching...' : 'Fetch Videos'}
+              </button>
+              <button
+                onClick={handleGenerateSchedule}
+                className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all transform hover:scale-105"
+              >
+                Generate Schedule
+              </button>
+            </div>
           </div>
         )}
 
