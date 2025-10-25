@@ -165,7 +165,15 @@ export default function VastAIModal({
             if (execResult.success) {
               addLog(`✓ ${defaultScript.name}.py executed successfully`);
               if (execResult.output) {
-                addLog(`Output: ${execResult.output.substring(0, 200)}...`);
+                addLog(`--- Script Output Start ---`);
+                // Split output by newlines and log each line
+                const outputLines = execResult.output.split('\n');
+                outputLines.forEach((line) => {
+                  if (line.trim()) {  // Only log non-empty lines
+                    addLog(line);
+                  }
+                });
+                addLog(`--- Script Output End ---`);
               }
             } else {
               addLog(`✗ ${defaultScript.name}.py execution failed: ${execResult.error}`);
