@@ -21,35 +21,43 @@ export async function POST(request: NextRequest) {
 
     console.log('VastAI: Starting instance rental process...', { instanceType });
 
-    // Search for available offers
-    const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
+    // Search for available offers using the correct endpoint
+    const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles/`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
       },
       params: {
-        gpu_name: instanceType,
-        order: 'dph_total',
-        limit: 1,
+        q: JSON.stringify({
+          verified: { eq: true },
+          external: { eq: false },
+          rentable: { eq: true },
+          gpu_name: { eq: instanceType }
+        }),
+        order: '[["dph_total", "asc"]]',
+        type: 'on-demand'
       },
     });
 
     console.log('VastAI: Search response received', {
-      offersCount: searchResponse.data?.offers?.length || 0
+      offersCount: searchResponse.data?.offers?.length || 0,
+      data: searchResponse.data
     });
 
-    if (!searchResponse.data?.offers?.[0]) {
+    const offers = searchResponse.data?.offers || [];
+
+    if (offers.length === 0) {
       console.error('VastAI: No available instances found for', instanceType);
       return NextResponse.json(
-        { error: `No available ${instanceType} instances found. Try again later or contact VastAI support.` },
+        { error: `No available ${instanceType} instances found. Try again later or use a different GPU type.` },
         { status: 404 }
       );
     }
 
-    const offer = searchResponse.data.offers[0];
+    const offer = offers[0];
     console.log('VastAI: Found offer', { offerId: offer.id, price: offer.dph_total });
 
-    // Rent the instance
-    const rentResponse = await axios.post(
+    // Rent the instance using PUT method
+    const rentResponse = await axios.put(
       `${VASTAI_API_URL}/asks/${offer.id}/`,
       {
         image: 'pytorch/pytorch:latest',
