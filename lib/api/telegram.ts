@@ -37,8 +37,8 @@ export async function sendReferenceAudio(
   chatId: string,
   audioUrl: string
 ): Promise<boolean> {
-  const message = `🎵 *Reference Audio Link*\n\n${audioUrl}`;
-  return sendMessage(botToken, chatId, message);
+  // Send only the link, no extra text
+  return sendMessage(botToken, chatId, audioUrl, 'Markdown');
 }
 
 // Send script as .txt file
