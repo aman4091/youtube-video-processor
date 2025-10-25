@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = await axios.post(
-      `${VASTAI_API_URL}/instances/${instanceId}/execute`,
+      `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
       {
         command,
       },
@@ -43,10 +43,14 @@ export async function POST(request: NextRequest) {
       success: true,
     });
   } catch (error: any) {
-    console.error('VastAI Execute Error:', error.response?.data || error.message);
+    console.error('VastAI Execute Error:', {
+      message: error.message,
+      data: error.response?.data,
+      url: error.config?.url
+    });
     return NextResponse.json(
       {
-        output: error.response?.data?.message || 'Command execution failed',
+        output: error.response?.data?.message || error.response?.data?.msg || 'Command execution failed',
         success: false,
       },
       { status: 500 }

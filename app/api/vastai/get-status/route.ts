@@ -25,14 +25,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('VastAI: Checking status for instance:', instanceId);
+
     const response = await axios.get(
-      `${VASTAI_API_URL}/instances/${instanceId}`,
+      `${VASTAI_API_URL}/instances/${instanceId}/`,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
       }
     );
+
+    console.log('VastAI: Status response:', {
+      id: response.data.id,
+      status: response.data.actual_status,
+      has_ssh: !!response.data.ssh_host
+    });
 
     return NextResponse.json({
       id: response.data.id,
@@ -42,9 +50,14 @@ export async function POST(request: NextRequest) {
       public_ipaddr: response.data.public_ipaddr,
     });
   } catch (error: any) {
-    console.error('VastAI Status Error:', error.response?.data || error.message);
+    console.error('VastAI Status Error:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
     return NextResponse.json(
-      { error: error.response?.data?.error || 'Failed to get instance status' },
+      { error: error.response?.data?.error || error.response?.data?.msg || 'Failed to get instance status' },
       { status: 500 }
     );
   }
