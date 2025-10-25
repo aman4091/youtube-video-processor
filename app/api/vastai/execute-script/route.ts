@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { getSharedSetting } from '@/lib/db/settings';
 
+// Fixed: Using correct VastAI API endpoint (console.vast.ai, not cloud.vast.ai)
 const VASTAI_API_URL = 'https://console.vast.ai/api/v0';
 
 export async function POST(request: NextRequest) {
