@@ -183,15 +183,13 @@ export async function listInstances(apiKey: string): Promise<VastAIInstance[]> {
 
 // Upload script to instance (via our API proxy)
 export async function uploadScriptToInstance(
-  sshHost: string,
-  sshPort: number,
+  instanceId: number,
   scriptName: string,
   scriptContent: string
 ): Promise<{ success: boolean; output?: string; error?: string }> {
   try {
     const response = await axios.post('/api/vastai/upload-script', {
-      sshHost,
-      sshPort,
+      instanceId,
       scriptName,
       scriptContent,
     });
@@ -211,14 +209,12 @@ export async function uploadScriptToInstance(
 
 // Execute script on instance (via our API proxy)
 export async function executeScriptOnInstance(
-  sshHost: string,
-  sshPort: number,
+  instanceId: number,
   scriptName: string
 ): Promise<{ success: boolean; output?: string; error?: string }> {
   try {
     const response = await axios.post('/api/vastai/execute-script', {
-      sshHost,
-      sshPort,
+      instanceId,
       scriptName,
     });
 

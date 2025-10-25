@@ -117,8 +117,7 @@ export default function VastAIModal({
           for (const script of pythonScripts) {
             addLog(`Uploading ${script.name}.py...`);
             const uploadResult = await uploadScriptToInstance(
-              finalStatus.ssh_host,
-              finalStatus.ssh_port,
+              instance.id,
               `${script.name}.py`,
               script.content
             );
@@ -135,8 +134,7 @@ export default function VastAIModal({
           if (defaultScript) {
             addLog(`Auto-running default script: ${defaultScript.name}.py`);
             const execResult = await executeScriptOnInstance(
-              finalStatus.ssh_host,
-              finalStatus.ssh_port,
+              instance.id,
               `${defaultScript.name}.py`
             );
 
