@@ -41,7 +41,7 @@ export async function sendReferenceAudio(
   return sendMessage(botToken, chatId, message);
 }
 
-// Send script with formatting
+// Send script as .txt file
 export async function sendScript(
   botToken: string,
   chatId: string,
@@ -49,8 +49,40 @@ export async function sendScript(
   index: number,
   total: number
 ): Promise<boolean> {
-  const message = `📝 *Script ${index + 1}/${total}*\n\n\`\`\`\n${script}\n\`\`\``;
-  return sendMessage(botToken, chatId, message);
+  try {
+    const url = `${TELEGRAM_API_URL}${botToken}/sendDocument`;
+
+    // Create filename with index
+    const filename = `${index + 1}_script.txt`;
+
+    // Create a Blob from the script content
+    const blob = new Blob([script], { type: 'text/plain' });
+
+    // Create FormData to send the file
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('document', blob, filename);
+    formData.append('caption', `📝 Script ${index + 1}/${total}`);
+
+    console.log(`📄 Sending script ${index + 1}/${total} as file: ${filename}`);
+
+    const response = await axios.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    if (response.data.ok) {
+      console.log(`✓ Script ${index + 1} sent successfully`);
+      return true;
+    } else {
+      console.error('✗ Telegram API response not OK:', response.data);
+      return false;
+    }
+  } catch (error: any) {
+    console.error(`Telegram API Error (script ${index + 1}):`, error.response?.data || error.message);
+    throw new Error(`Failed to send script ${index + 1} to Telegram`);
+  }
 }
 
 // Send all scripts sequentially with delay

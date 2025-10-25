@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getWeekSchedule } from '@/lib/db/videos';
 import { getUserSettings } from '@/lib/db/users';
+import { getUserChannels } from '@/lib/db/channels';
+import { getAllSharedSettings } from '@/lib/db/settings';
+import { sendReferenceAudio, sendAllScripts } from '@/lib/api/telegram';
 import VideoCard from '@/components/VideoCard';
 import ProcessModal from '@/components/modals/ProcessModal';
-import VastAIModal from '@/components/modals/VastAIModal';
 import { formatDate, getTodayDate } from '@/lib/utils/helpers';
-import { RefreshCw, PlayCircle, Server, Sparkles, Download, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, PlayCircle, Sparkles, Download, Calendar, ChevronLeft, ChevronRight, Send, Music } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { DailySchedule, UserSettings } from '@/types';
 
@@ -19,9 +21,10 @@ export default function DashboardPage() {
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [processModalOpen, setProcessModalOpen] = useState(false);
-  const [vastAIModalOpen, setVastAIModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchingVideos, setFetchingVideos] = useState(false);
+  const [sendingScripts, setSendingScripts] = useState(false);
+  const [sendingAudio, setSendingAudio] = useState(false);
 
   // Generate next 7 days
   const getNext7Days = () => {
@@ -121,6 +124,82 @@ export default function DashboardPage() {
       fetchSchedule();
     } catch (error: any) {
       toast.error(error.message, { id: loadingToast });
+    }
+  };
+
+  const handleSendScripts = async () => {
+    if (!user) return;
+
+    setSendingScripts(true);
+    const loadingToast = toast.loading('Sending scripts to Telegram...');
+
+    try {
+      const settings = await getAllSharedSettings();
+      const botToken = settings.telegram_bot_token;
+      const chatId = settings.telegram_chat_id;
+
+      if (!botToken || !chatId) {
+        throw new Error('Telegram credentials not set. Please add them in Settings.');
+      }
+
+      // Get all completed scripts from the selected date
+      const schedule = weekSchedule[selectedDate] || [];
+      const completedSchedule = schedule.filter(
+        (item) => item.status === 'completed' && item.processed_script
+      );
+
+      if (completedSchedule.length === 0) {
+        throw new Error('No completed scripts to send for this date');
+      }
+
+      const scripts = completedSchedule.map((item) => item.processed_script!);
+
+      const result = await sendAllScripts(botToken, chatId, scripts);
+
+      if (result.sent > 0) {
+        toast.success(`${result.sent} scripts sent successfully!`, { id: loadingToast });
+      }
+
+      if (result.failed > 0) {
+        toast.error(`${result.failed} scripts failed to send`, { id: loadingToast });
+      }
+    } catch (error: any) {
+      toast.error(error.message, { id: loadingToast });
+    } finally {
+      setSendingScripts(false);
+    }
+  };
+
+  const handleSetReferenceAudio = async () => {
+    if (!user) return;
+
+    setSendingAudio(true);
+    const loadingToast = toast.loading('Sending reference audio to Telegram...');
+
+    try {
+      const settings = await getAllSharedSettings();
+      const botToken = settings.telegram_bot_token;
+      const chatId = settings.telegram_chat_id;
+
+      if (!botToken || !chatId) {
+        throw new Error('Telegram credentials not set. Please add them in Settings.');
+      }
+
+      // Get user's channels to find reference audio
+      const channels = await getUserChannels(user.id);
+      if (channels.length === 0) {
+        throw new Error('No source channels found. Add a channel in Settings.');
+      }
+
+      // Send reference audio for the first channel
+      const audioUrl = channels[0].reference_audio_url;
+      await sendReferenceAudio(botToken, chatId, audioUrl);
+
+      toast.success('Reference audio sent to Telegram!', { id: loadingToast });
+    } catch (error: any) {
+      toast.error(error.message, { id: loadingToast });
+    } finally {
+      setSendingAudio(false);
     }
   };
 
@@ -298,7 +377,7 @@ export default function DashboardPage() {
                   <p className="text-3xl font-bold text-white">{userSettings?.videos_per_day || 16}</p>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl flex items-center justify-center">
-                  <Server className="h-6 w-6 text-purple-400" />
+                  <Calendar className="h-6 w-6 text-purple-400" />
                 </div>
               </div>
             </div>
@@ -346,7 +425,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 justify-center sticky bottom-8 z-10">
+            <div className="flex gap-4 justify-center sticky bottom-8 z-10 flex-wrap">
               <button
                 onClick={() => setProcessModalOpen(true)}
                 className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-2xl shadow-indigo-500/40 hover:shadow-indigo-500/60 transition-all transform hover:scale-105 backdrop-blur-sm"
@@ -356,11 +435,21 @@ export default function DashboardPage() {
               </button>
 
               <button
-                onClick={() => setVastAIModalOpen(true)}
-                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-semibold shadow-2xl shadow-purple-500/40 hover:shadow-purple-500/60 transition-all transform hover:scale-105 backdrop-blur-sm"
+                onClick={handleSendScripts}
+                disabled={sendingScripts}
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold shadow-2xl shadow-green-500/40 hover:shadow-green-500/60 transition-all transform hover:scale-105 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Server className="h-5 w-5" />
-                VastAI
+                <Send className={`h-5 w-5 ${sendingScripts ? 'animate-pulse' : ''}`} />
+                {sendingScripts ? 'Sending...' : 'Send Scripts'}
+              </button>
+
+              <button
+                onClick={handleSetReferenceAudio}
+                disabled={sendingAudio}
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-semibold shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 transition-all transform hover:scale-105 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Music className={`h-5 w-5 ${sendingAudio ? 'animate-pulse' : ''}`} />
+                {sendingAudio ? 'Sending...' : 'Set Reference Audio'}
               </button>
             </div>
           </>
@@ -372,12 +461,6 @@ export default function DashboardPage() {
           onClose={() => setProcessModalOpen(false)}
           schedule={schedule}
           onUpdate={fetchSchedule}
-        />
-
-        <VastAIModal
-          isOpen={vastAIModalOpen}
-          onClose={() => setVastAIModalOpen(false)}
-          schedule={schedule}
         />
       </div>
     </div>
