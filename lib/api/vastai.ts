@@ -19,8 +19,14 @@ export async function rentGPUInstance(
 
     return response.data;
   } catch (error: any) {
-    console.error('VastAI Rent Error:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.error || 'Failed to rent GPU instance');
+    console.error('VastAI Rent Error:', {
+      status: error.response?.status,
+      error: error.response?.data,
+      message: error.message
+    });
+
+    const errorMessage = error.response?.data?.error || error.message || 'Failed to rent GPU instance';
+    throw new Error(errorMessage);
   }
 }
 

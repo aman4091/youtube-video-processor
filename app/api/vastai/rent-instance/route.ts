@@ -12,11 +12,14 @@ export async function POST(request: NextRequest) {
     const apiKey = await getSharedSetting('vastai_api_key');
 
     if (!apiKey) {
+      console.error('VastAI API key not found in settings');
       return NextResponse.json(
-        { error: 'VastAI API key not configured' },
-        { status: 500 }
+        { error: 'VastAI API key not configured in Settings. Please add it first.' },
+        { status: 400 }
       );
     }
+
+    console.log('VastAI: Starting instance rental process...', { instanceType });
 
     // Search for available offers
     const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
@@ -30,14 +33,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('VastAI: Search response received', {
+      offersCount: searchResponse.data?.offers?.length || 0
+    });
+
     if (!searchResponse.data?.offers?.[0]) {
+      console.error('VastAI: No available instances found for', instanceType);
       return NextResponse.json(
-        { error: 'No available instances found' },
+        { error: `No available ${instanceType} instances found. Try again later or contact VastAI support.` },
         { status: 404 }
       );
     }
 
     const offer = searchResponse.data.offers[0];
+    console.log('VastAI: Found offer', { offerId: offer.id, price: offer.dph_total });
 
     // Rent the instance
     const rentResponse = await axios.post(
@@ -55,14 +64,31 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    console.log('VastAI: Instance rented successfully', {
+      contractId: rentResponse.data.new_contract
+    });
+
     return NextResponse.json({
       id: rentResponse.data.new_contract,
       status: 'renting',
     });
   } catch (error: any) {
-    console.error('VastAI Rent Error:', error.response?.data || error.message);
+    console.error('VastAI Rent Error Details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        params: error.config?.params,
+      }
+    });
+
     return NextResponse.json(
-      { error: error.response?.data?.error || 'Failed to rent GPU instance' },
+      {
+        error: error.response?.data?.error || error.message || 'Failed to rent GPU instance',
+        details: error.response?.data
+      },
       { status: 500 }
     );
   }
