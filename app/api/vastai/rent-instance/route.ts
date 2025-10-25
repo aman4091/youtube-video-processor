@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
     if (allOffers.length > 0) {
       console.log('VastAI: First 5 offers:', allOffers.slice(0, 5).map((o: any) => ({
         gpu: o.gpu_name,
+        count: o.num_gpus || o.gpu_count || '?',
         vram: o.gpu_ram,
         location: o.geolocation,
-        rentable: o.rentable,
-        verified: o.verified
+        price: o.dph_total
       })));
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter offers by GPU type, VRAM, and location (verified + rentable already filtered by API)
+    // Filter offers by GPU type, VRAM, location, and SINGLE GPU only (verified + rentable already filtered by API)
     const offers = allOffers
       .filter((offer: any) => {
         const matchesGPU = offer.gpu_name?.includes(instanceType);
@@ -73,8 +73,9 @@ export async function POST(request: NextRequest) {
         const inRegion = region === 'US' ?
           (offer.geolocation?.includes('US') || offer.geolocation?.includes('CA')) :
           true;
+        const isSingleGPU = (offer.num_gpus === 1) || (offer.gpu_count === 1); // Only 1 GPU instances
 
-        return matchesGPU && hasEnoughVRAM && inRegion;
+        return matchesGPU && hasEnoughVRAM && inRegion && isSingleGPU;
       })
       .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
 
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
       offerId: offer.id,
       price: offer.dph_total,
       gpu: offer.gpu_name,
+      gpuCount: offer.num_gpus || offer.gpu_count,
       vram: offer.gpu_ram,
       location: offer.geolocation
     });
@@ -109,6 +111,7 @@ export async function POST(request: NextRequest) {
       {
         image: 'pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime',
         disk: 60, // 60GB storage requirement
+        num_gpus: 1, // Explicitly request 1 GPU only
         onstart: '',
       },
       {
