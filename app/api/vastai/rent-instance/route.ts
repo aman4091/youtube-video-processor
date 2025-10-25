@@ -46,11 +46,13 @@ export async function POST(request: NextRequest) {
 
     let allOffers = searchResponse.data?.offers || [];
 
-    // Debug: Log first 5 offers to see what GPUs are available
+    // Debug: Log first 3 offers with ALL fields to see structure
     if (allOffers.length > 0) {
-      console.log('VastAI: First 5 offers:', allOffers.slice(0, 5).map((o: any) => ({
+      console.log('VastAI: Sample offer (FULL DATA):', JSON.stringify(allOffers[0], null, 2));
+      console.log('VastAI: First 5 offers summary:', allOffers.slice(0, 5).map((o: any) => ({
         gpu: o.gpu_name,
-        count: o.num_gpus || o.gpu_count || '?',
+        num_gpus: o.num_gpus,
+        gpu_count: o.gpu_count,
         vram: o.gpu_ram,
         location: o.geolocation,
         price: o.dph_total
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter offers by GPU type, VRAM, location, and SINGLE GPU only (verified + rentable already filtered by API)
+    // Filter offers by GPU type, VRAM, location (temporarily disabled single GPU filter for debugging)
     const offers = allOffers
       .filter((offer: any) => {
         const matchesGPU = offer.gpu_name?.includes(instanceType);
@@ -73,9 +75,19 @@ export async function POST(request: NextRequest) {
         const inRegion = region === 'US' ?
           (offer.geolocation?.includes('US') || offer.geolocation?.includes('CA')) :
           true;
-        const isSingleGPU = (offer.num_gpus === 1) || (offer.gpu_count === 1); // Only 1 GPU instances
+        // TEMP: Disabled single GPU filter to debug
+        // const isSingleGPU = (offer.num_gpus === 1) || (offer.gpu_count === 1);
 
-        return matchesGPU && hasEnoughVRAM && inRegion && isSingleGPU;
+        console.log('VastAI: Checking offer', {
+          gpu: offer.gpu_name,
+          matchesGPU,
+          hasEnoughVRAM,
+          inRegion,
+          vram: offer.gpu_ram,
+          location: offer.geolocation
+        });
+
+        return matchesGPU && hasEnoughVRAM && inRegion; // && isSingleGPU;
       })
       .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
 
