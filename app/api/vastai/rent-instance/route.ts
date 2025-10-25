@@ -22,33 +22,47 @@ export async function POST(request: NextRequest) {
     console.log('VastAI: Starting instance rental process...', { instanceType });
 
     // Search for available offers using the correct endpoint
+    // VastAI API v0 bundles endpoint
     const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles/`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-      },
-      params: {
-        q: JSON.stringify({
-          verified: { eq: true },
-          external: { eq: false },
-          rentable: { eq: true },
-          gpu_name: { eq: instanceType }
-        }),
-        order: '[["dph_total", "asc"]]',
-        type: 'on-demand'
       },
     });
 
     console.log('VastAI: Search response received', {
       offersCount: searchResponse.data?.offers?.length || 0,
-      data: searchResponse.data
+      responseType: typeof searchResponse.data
     });
 
-    const offers = searchResponse.data?.offers || [];
+    let allOffers = searchResponse.data?.offers || [];
+
+    if (allOffers.length === 0) {
+      console.error('VastAI: No offers returned from API');
+      return NextResponse.json(
+        { error: 'No GPU instances available on VastAI currently. Please try again later.' },
+        { status: 404 }
+      );
+    }
+
+    // Filter offers by GPU type and rentability
+    const offers = allOffers
+      .filter((offer: any) =>
+        offer.gpu_name?.includes(instanceType) &&
+        offer.rentable === true &&
+        offer.verified === true
+      )
+      .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
+
+    console.log('VastAI: Filtered offers', {
+      totalOffers: allOffers.length,
+      filteredCount: offers.length,
+      requestedGPU: instanceType
+    });
 
     if (offers.length === 0) {
-      console.error('VastAI: No available instances found for', instanceType);
+      console.error('VastAI: No matching instances found for', instanceType);
       return NextResponse.json(
-        { error: `No available ${instanceType} instances found. Try again later or use a different GPU type.` },
+        { error: `No available ${instanceType} instances found. Try a different GPU type (RTX3090, RTX4090, A100, etc.)` },
         { status: 404 }
       );
     }
