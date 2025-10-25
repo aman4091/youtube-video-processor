@@ -72,28 +72,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter offers by GPU type, VRAM, location, and single GPU only
+    // Filter offers by GPU type, VRAM, and single GPU only
+    // Region filter removed to allow worldwide RTX 4090 instances
     const offers = allOffers
       .filter((offer: any) => {
         const matchesGPU = offer.gpu_name?.includes(instanceType);
         const hasEnoughVRAM = (offer.gpu_ram || 0) >= minVram;
-        const inRegion = region === 'US' ?
-          (offer.geolocation?.includes('US') || offer.geolocation?.includes('CA')) :
-          true;
         const isSingleGPU = (offer.num_gpus === 1) || (offer.gpu_count === 1);
 
         console.log('VastAI: Checking offer', {
           gpu: offer.gpu_name,
           matchesGPU,
           hasEnoughVRAM,
-          inRegion,
           isSingleGPU,
           num_gpus: offer.num_gpus,
           vram: offer.gpu_ram,
           location: offer.geolocation
         });
 
-        return matchesGPU && hasEnoughVRAM && inRegion && isSingleGPU;
+        return matchesGPU && hasEnoughVRAM && isSingleGPU;
       })
       .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
 
