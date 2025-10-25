@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeCommand } from '@/lib/api/vastai';
+import axios from 'axios';
+import { getSharedSetting } from '@/lib/db/settings';
+
+const VASTAI_API_URL = 'https://cloud.vast.ai/api/v0';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,28 +15,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Execute the Python script
-    const command = `cd /workspace && python3 ${scriptName}`;
+    // Get VastAI API key from settings
+    const apiKey = await getSharedSetting('vastai_api_key');
 
-    // Execute the command via VastAI API
-    const result = await executeCommand(instanceId, command);
-
-    if (!result.success) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: `Failed to execute script: ${result.output}` },
+        { error: 'VastAI API key not configured' },
         { status: 500 }
       );
     }
 
+    // Execute the Python script
+    const command = `cd /workspace && python3 ${scriptName}`;
+
+    // Execute the command via VastAI API directly
+    const response = await axios.post(
+      `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
+      { command },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
     return NextResponse.json({
       success: true,
-      output: result.output,
+      output: response.data.output || '',
       message: `Script ${scriptName} executed successfully`,
     });
   } catch (error: any) {
-    console.error('Execute script error:', error);
+    console.error('Execute script error:', {
+      message: error.message,
+      data: error.response?.data,
+      url: error.config?.url
+    });
     return NextResponse.json(
-      { error: error.message || 'Failed to execute script' },
+      { error: error.response?.data?.message || error.message || 'Failed to execute script' },
       { status: 500 }
     );
   }
