@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter offers by GPU type, VRAM, location (temporarily disabled single GPU filter for debugging)
+    // Filter offers by GPU type, VRAM, location, and single GPU only
     const offers = allOffers
       .filter((offer: any) => {
         const matchesGPU = offer.gpu_name?.includes(instanceType);
@@ -75,19 +75,20 @@ export async function POST(request: NextRequest) {
         const inRegion = region === 'US' ?
           (offer.geolocation?.includes('US') || offer.geolocation?.includes('CA')) :
           true;
-        // TEMP: Disabled single GPU filter to debug
-        // const isSingleGPU = (offer.num_gpus === 1) || (offer.gpu_count === 1);
+        const isSingleGPU = (offer.num_gpus === 1) || (offer.gpu_count === 1);
 
         console.log('VastAI: Checking offer', {
           gpu: offer.gpu_name,
           matchesGPU,
           hasEnoughVRAM,
           inRegion,
+          isSingleGPU,
+          num_gpus: offer.num_gpus,
           vram: offer.gpu_ram,
           location: offer.geolocation
         });
 
-        return matchesGPU && hasEnoughVRAM && inRegion; // && isSingleGPU;
+        return matchesGPU && hasEnoughVRAM && inRegion && isSingleGPU;
       })
       .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
 
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
     const rentResponse = await axios.put(
       `${VASTAI_API_URL}/asks/${offer.id}/`,
       {
-        image: 'pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime',
+        image: 'pytorch/pytorch:latest',  // Use latest stable PyTorch image
         disk: 60, // 60GB storage requirement
         num_gpus: 1, // Explicitly request 1 GPU only
         onstart: '',
