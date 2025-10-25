@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
 
     console.log('VastAI: Starting instance rental process...', { instanceType });
 
-    // Search for available offers - Add GPU filters directly in API query
-    // This gives us more targeted results instead of filtering 64 random offers
+    // Search for available offers with API filters
+    // Note: VastAI API has limited operators (eq, gte, lte, gt, lt)
+    // GPU name filtering must be done client-side
     const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -35,7 +36,6 @@ export async function POST(request: NextRequest) {
         q: JSON.stringify({
           verified: { eq: true },
           rentable: { eq: true },
-          gpu_name: { ilike: `%${instanceType}%` },  // Filter by GPU type in API
           num_gpus: { eq: 1 },  // Only single GPU instances
           gpu_ram: { gte: minVram },  // Minimum VRAM requirement
         })
