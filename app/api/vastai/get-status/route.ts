@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Log full response to debug structure
+    console.log('VastAI: Full status response:', JSON.stringify(response.data, null, 2));
+
     console.log('VastAI: Status response:', {
       id: response.data.id,
       status: response.data.actual_status,

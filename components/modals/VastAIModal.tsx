@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Server, Play, StopCircle, Send, Music, Code, Upload as UploadIcon, RefreshCw } from 'lucide-react';
 import { rentGPUInstance, getInstanceStatus, executeCommands, stopInstance, uploadScriptToInstance, executeScriptOnInstance } from '@/lib/api/vastai';
 import { sendReferenceAudio, sendAllScripts } from '@/lib/api/telegram';
@@ -16,6 +16,8 @@ interface VastAIModalProps {
   onClose: () => void;
   schedule: DailySchedule[];
 }
+
+const STORAGE_KEY = 'vastai_active_instance';
 
 export default function VastAIModal({
   isOpen,
@@ -35,12 +37,36 @@ export default function VastAIModal({
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
   };
 
+  // Load instance state from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        setInstanceId(data.instanceId);
+        setStatus(data.status || '');
+        addLog('Restored active instance from previous session');
+      } catch (e) {
+        console.error('Failed to parse stored instance data:', e);
+      }
+    }
+  }, []);
+
+  // Save instance state to localStorage whenever it changes
+  useEffect(() => {
+    if (instanceId) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ instanceId, status }));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [instanceId, status]);
+
   const handleSetupVastAI = async () => {
     setLoading(true);
     try {
       const commandsStr = await getSharedSetting('vastai_commands');
 
-      addLog('Searching for RTX 4090 in North America...');
+      addLog('Searching for RTX 4090 (worldwide)...');
       const instance = await rentGPUInstance('RTX 4090', 20, 'US');
       setInstanceId(instance.id);
       setAlternativeOffers(instance.alternativeOffers || []);
