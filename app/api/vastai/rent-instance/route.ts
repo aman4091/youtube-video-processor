@@ -40,6 +40,17 @@ export async function POST(request: NextRequest) {
 
     let allOffers = searchResponse.data?.offers || [];
 
+    // Debug: Log first offer to see structure
+    if (allOffers.length > 0) {
+      console.log('VastAI: Sample offer structure', {
+        gpu_name: allOffers[0].gpu_name,
+        gpu_ram: allOffers[0].gpu_ram,
+        geolocation: allOffers[0].geolocation,
+        rentable: allOffers[0].rentable,
+        verified: allOffers[0].verified
+      });
+    }
+
     if (allOffers.length === 0) {
       console.error('VastAI: No offers returned from API');
       return NextResponse.json(
@@ -58,6 +69,20 @@ export async function POST(request: NextRequest) {
           true;
         const isRentable = offer.rentable === true;
         const isVerified = offer.verified === true;
+
+        // Debug each filter
+        if (!matchesGPU || !hasEnoughVRAM || !inRegion) {
+          console.log('VastAI: Offer filtered out', {
+            gpu: offer.gpu_name,
+            vram: offer.gpu_ram,
+            location: offer.geolocation,
+            matchesGPU,
+            hasEnoughVRAM,
+            inRegion,
+            isRentable,
+            isVerified
+          });
+        }
 
         return matchesGPU && hasEnoughVRAM && inRegion && isRentable && isVerified;
       })
