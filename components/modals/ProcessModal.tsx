@@ -138,30 +138,30 @@ export default function ProcessModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b flex items-center justify-between">
+        <div className="p-6 border-b border-slate-700/50 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-2xl font-bold text-white">
               Process Transcripts
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               Video {currentIndex + 1} of {schedule.length}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-all"
+            className="p-2 hover:bg-slate-800/50 rounded-lg transition-all"
           >
-            <X className="h-6 w-6 text-gray-600" />
+            <X className="h-6 w-6 text-gray-400" />
           </button>
         </div>
 
         {/* Progress Bar */}
-        <div className="h-2 bg-gray-200">
+        <div className="h-2 bg-slate-800/50">
           <div
-            className="h-full bg-indigo-600 transition-all duration-300"
+            className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-300"
             style={{ width: `${((currentIndex + 1) / schedule.length) * 100}%` }}
           />
         </div>
@@ -170,19 +170,19 @@ export default function ProcessModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Video Info */}
           {currentItem?.video && (
-            <div className="flex items-start gap-4 bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-start gap-4 bg-slate-800/30 border border-slate-700/30 p-4 rounded-xl">
               {currentItem.video.thumbnail_url && (
                 <img
                   src={currentItem.video.thumbnail_url}
                   alt={currentItem.video.title}
-                  className="w-32 h-20 object-cover rounded"
+                  className="w-32 h-20 object-cover rounded-lg"
                 />
               )}
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-800">
+                <h3 className="font-semibold text-white">
                   {currentItem.video.title}
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-400 mt-1 font-mono">
                   {currentItem.video.video_id}
                 </p>
               </div>
@@ -191,30 +191,30 @@ export default function ProcessModal({
 
           {/* Transcript Section */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="font-medium text-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <label className="font-semibold text-gray-300">
                 Transcript
               </label>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-400">
                 {transcriptChars.toLocaleString()} characters
               </span>
             </div>
             {loading ? (
-              <div className="flex items-center justify-center p-8 bg-gray-50 rounded-lg">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="flex items-center justify-center p-8 bg-slate-800/30 border border-slate-700/30 rounded-xl">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
               </div>
             ) : (
               <textarea
                 value={transcript}
                 readOnly
-                className="w-full h-48 p-4 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm resize-none"
+                className="w-full h-48 p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-gray-300 font-mono text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="Transcript will appear here..."
               />
             )}
             <button
               onClick={handleCopyPromptAndTranscript}
               disabled={!transcript}
-              className="mt-2 flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-3 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
             >
               <Copy className="h-4 w-4" />
               Copy Prompt + Transcript
@@ -223,28 +223,28 @@ export default function ProcessModal({
 
           {/* Processed Script Section */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="font-medium text-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <label className="font-semibold text-gray-300">
                 Paste Processed Script
               </label>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-400">
                 {processedChars.toLocaleString()} characters
               </span>
             </div>
             <textarea
               value={processedScript}
               onChange={(e) => setProcessedScript(e.target.value)}
-              className="w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm resize-none"
+              className="w-full h-48 p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white font-mono text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Paste your processed script here..."
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t flex items-center justify-between">
+        <div className="p-6 border-t border-slate-700/50 flex items-center justify-between">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+            className="px-6 py-3 border border-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-800/50 transition-all font-semibold"
           >
             Close
           </button>
@@ -252,7 +252,7 @@ export default function ProcessModal({
           <button
             onClick={handleSubmitAndNext}
             disabled={!processedScript.trim()}
-            className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           >
             {currentIndex < schedule.length - 1 ? (
               <>
