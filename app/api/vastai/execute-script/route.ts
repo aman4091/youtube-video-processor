@@ -25,10 +25,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Execute the Python script in background using bash wrapper
+    // Execute the Python script in background using tmux (more reliable for long-running scripts)
     const logFile = `/workspace/${scriptName}.log`;
-    // Use bash -c to ensure proper background execution
-    const command = `bash -c "cd /workspace && python3 ${scriptName} > ${scriptName}.log 2>&1 &"`;
+    const sessionName = `script_${scriptName.replace('.py', '')}`;
+
+    // Use tmux to run script in detached session with output redirection
+    // -u flag ensures unbuffered Python output for real-time logs
+    const command = `tmux new-session -d -s ${sessionName} "cd /workspace && python3 -u ${scriptName} 2>&1 | tee ${scriptName}.log"`;
 
     console.log('Executing Python script in background:', { instanceId, scriptName, command, logFile });
 
