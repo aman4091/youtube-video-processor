@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
 
     console.log('VastAI: Starting instance rental process...', { instanceType });
 
-    // Search for available offers - VastAI needs JSON dict for query
+    // Search for available offers - Add GPU filters directly in API query
+    // This gives us more targeted results instead of filtering 64 random offers
     const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
         q: JSON.stringify({
           verified: { eq: true },
           rentable: { eq: true },
+          gpu_name: { ilike: `%${instanceType}%` },  // Filter by GPU type in API
+          num_gpus: { eq: 1 },  // Only single GPU instances
+          gpu_ram: { gte: minVram },  // Minimum VRAM requirement
         })
       }
     });
@@ -41,7 +45,8 @@ export async function POST(request: NextRequest) {
     console.log('VastAI: Search response received', {
       offersCount: searchResponse.data?.offers?.length || 0,
       responseType: typeof searchResponse.data,
-      filter: 'verified + rentable instances'
+      apiFilters: `${instanceType}, ${minVram}GB+ VRAM, 1x GPU only`,
+      clientFilter: region === 'US' ? 'North America (US/CA)' : region
     });
 
     let allOffers = searchResponse.data?.offers || [];
