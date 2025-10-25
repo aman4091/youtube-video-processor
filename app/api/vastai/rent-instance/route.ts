@@ -118,14 +118,17 @@ export async function POST(request: NextRequest) {
       location: offer.geolocation
     });
 
-    // Rent the instance using PUT method with PyTorch template
+    // Rent the instance using PUT method with VastAI PyTorch template
     const rentResponse = await axios.put(
       `${VASTAI_API_URL}/asks/${offer.id}/`,
       {
-        image: 'pytorch/pytorch:latest',  // Use latest stable PyTorch image
+        client_id: 'me',
+        image: 'pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime',
         disk: 60, // 60GB storage requirement
-        num_gpus: 1, // Explicitly request 1 GPU only
+        label: 'youtube-processor',
         onstart: '',
+        runtype: 'ssh',
+        template_hash_id: '305ac3ffd3e42e0d9ad1f4ae14729ec2', // Official VastAI PyTorch template
       },
       {
         headers: {
