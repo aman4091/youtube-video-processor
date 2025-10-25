@@ -1,8 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/daily-fetch",
-      "schedule": "0 0 * * *"
-    }
-  ]
+  "cleanUrls": true,
+  "trailingSlash": false
 }
