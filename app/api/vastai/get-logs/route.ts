@@ -6,7 +6,7 @@ const VASTAI_API_URL = 'https://console.vast.ai/api/v0';
 
 export async function POST(request: NextRequest) {
   try {
-    const { instanceId, tail = 100 } = await request.json();
+    const { instanceId, tail = 100, scriptName = 'k.py' } = await request.json();
 
     if (!instanceId) {
       return NextResponse.json(
@@ -25,29 +25,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Request logs from VastAI
-    const response = await axios.put(
-      `${VASTAI_API_URL}/instances/request_logs/${instanceId}`,
-      {
-        tail: tail.toString()
-      },
+    // Read logs from the script's log file using tail command
+    const logFile = `/workspace/${scriptName}.log`;
+    const command = `tail -n ${tail} ${logFile} 2>/dev/null || echo "Log file not found yet..."`;
+
+    console.log('Reading logs from file:', { logFile, command });
+
+    // Execute command to read log file
+    const response = await axios.post(
+      `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
+      { command },
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
       }
     );
 
-    // Log full response to debug structure
-    console.log('VastAI logs full response:', JSON.stringify(response.data, null, 2));
-    console.log('VastAI logs response type:', typeof response.data);
-    console.log('VastAI logs response keys:', Object.keys(response.data || {}));
+    const logs = response.data?.output || '';
+    console.log('Logs fetched:', logs.substring(0, 200));
 
     return NextResponse.json({
       success: true,
-      logs: response.data || '',
+      logs: logs,
     });
   } catch (error: any) {
     console.error('VastAI Logs Error:', {

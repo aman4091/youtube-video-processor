@@ -164,12 +164,14 @@ export async function executeScriptOnInstance(
 // Get instance logs (for real-time terminal-like output)
 export async function getInstanceLogs(
   instanceId: number,
-  tail: number = 100
+  tail: number = 100,
+  scriptName: string = 'k.py'
 ): Promise<{ success: boolean; logs?: string; error?: string }> {
   try {
     const response = await axios.post('/api/vastai/get-logs', {
       instanceId,
       tail,
+      scriptName,
     });
 
     return {

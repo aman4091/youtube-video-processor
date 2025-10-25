@@ -34,6 +34,7 @@ export default function VastAIModal({
   const [alternativeOffers, setAlternativeOffers] = useState<any[]>([]);
   const [isPollingLogs, setIsPollingLogs] = useState(false);
   const [lastLogCount, setLastLogCount] = useState(0);
+  const [currentScriptName, setCurrentScriptName] = useState<string>('k.py');
 
   const addLog = (message: string) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -69,7 +70,7 @@ export default function VastAIModal({
 
     const pollInterval = setInterval(async () => {
       try {
-        const result = await getInstanceLogs(instanceId, 50); // Last 50 lines
+        const result = await getInstanceLogs(instanceId, 50, currentScriptName); // Last 50 lines
 
         if (result.success && result.logs) {
           const logLines = result.logs.split('\n').filter((line: string) => line.trim());
@@ -189,6 +190,9 @@ export default function VastAIModal({
           const defaultScript = await getDefaultScript();
           if (defaultScript) {
             addLog(`Auto-running default script: ${defaultScript.name}.py`);
+
+            // Set current script name for log polling
+            setCurrentScriptName(`${defaultScript.name}.py`);
 
             // Start real-time log polling for terminal-like output
             addLog('Starting real-time log monitoring...');

@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Execute the Python script and capture output to a log file
+    // Execute the Python script in background and redirect output to log file
     const logFile = `/workspace/${scriptName}.log`;
-    const command = `cd /workspace && python3 ${scriptName} > ${logFile} 2>&1 && cat ${logFile}`;
+    const command = `nohup python3 /workspace/${scriptName} > ${logFile} 2>&1 &`;
 
-    console.log('Executing Python script:', { instanceId, scriptName, command });
+    console.log('Executing Python script in background:', { instanceId, scriptName, command, logFile });
 
     // Execute the command via VastAI API directly (same as execute-command route)
     const response = await axios.post(
