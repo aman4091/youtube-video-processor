@@ -160,3 +160,27 @@ export async function executeScriptOnInstance(
     };
   }
 }
+
+// Get instance logs (for real-time terminal-like output)
+export async function getInstanceLogs(
+  instanceId: number,
+  tail: number = 100
+): Promise<{ success: boolean; logs?: string; error?: string }> {
+  try {
+    const response = await axios.post('/api/vastai/get-logs', {
+      instanceId,
+      tail,
+    });
+
+    return {
+      success: true,
+      logs: response.data.logs,
+    };
+  } catch (error: any) {
+    console.error('Get logs error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to fetch logs',
+    };
+  }
+}

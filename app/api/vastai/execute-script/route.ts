@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Execute the Python script
-    const command = `cd /workspace && python3 ${scriptName}`;
+    // Execute the Python script and capture output to a log file
+    const logFile = `/workspace/${scriptName}.log`;
+    const command = `cd /workspace && python3 ${scriptName} > ${logFile} 2>&1 && cat ${logFile}`;
 
     console.log('Executing Python script:', { instanceId, scriptName, command });
 

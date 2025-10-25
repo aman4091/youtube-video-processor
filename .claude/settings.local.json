@@ -4,7 +4,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Read(//d/am/Script/**)"
+      "Read(//d/am/Script/**)",
+      "WebSearch",
+      "WebFetch(domain:docs.vast.ai)",
+      "WebFetch(domain:vast.ai)"
     ],
     "deny": [],
     "ask": []
