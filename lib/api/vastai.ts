@@ -11,7 +11,7 @@ export interface VastAIInstance {
 // Rent a GPU instance
 export async function rentGPUInstance(
   instanceType: string = 'RTX 4090',
-  minVram: number = 20, // RTX 4090 has 24GB VRAM
+  minVram: number = 20,
   region: string = 'US'
 ): Promise<VastAIInstance & { alternativeOffers?: any[] }> {
   try {

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     const {
       instanceType = 'RTX 4090',
-      minVram = 20, // RTX 4090 has 24GB, so 20GB minimum
+      minVram = 20,
       region = 'US'
     } = await request.json();
 
@@ -25,30 +25,33 @@ export async function POST(request: NextRequest) {
 
     console.log('VastAI: Starting instance rental process...', { instanceType });
 
-    // Search for available offers using the correct endpoint
-    // VastAI API v0 bundles endpoint
-    const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles/`, {
+    // Search for available offers using the search endpoint (not bundles)
+    const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
       },
+      params: {
+        q: `gpu_name=${instanceType}`,
+      }
     });
 
     console.log('VastAI: Search response received', {
       offersCount: searchResponse.data?.offers?.length || 0,
-      responseType: typeof searchResponse.data
+      responseType: typeof searchResponse.data,
+      queryUsed: `gpu_name=${instanceType}`
     });
 
     let allOffers = searchResponse.data?.offers || [];
 
-    // Debug: Log first offer to see structure
+    // Debug: Log first 5 offers to see what GPUs are available
     if (allOffers.length > 0) {
-      console.log('VastAI: Sample offer structure', {
-        gpu_name: allOffers[0].gpu_name,
-        gpu_ram: allOffers[0].gpu_ram,
-        geolocation: allOffers[0].geolocation,
-        rentable: allOffers[0].rentable,
-        verified: allOffers[0].verified
-      });
+      console.log('VastAI: First 5 offers:', allOffers.slice(0, 5).map((o: any) => ({
+        gpu: o.gpu_name,
+        vram: o.gpu_ram,
+        location: o.geolocation,
+        rentable: o.rentable,
+        verified: o.verified
+      })));
     }
 
     if (allOffers.length === 0) {
