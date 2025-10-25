@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Execute the Python script in background and redirect output to log file
+    // Execute the Python script in background using bash wrapper
     const logFile = `/workspace/${scriptName}.log`;
-    const command = `nohup python3 /workspace/${scriptName} > ${logFile} 2>&1 &`;
+    // Use bash -c to ensure proper background execution
+    const command = `bash -c "cd /workspace && python3 ${scriptName} > ${scriptName}.log 2>&1 &"`;
 
     console.log('Executing Python script in background:', { instanceId, scriptName, command, logFile });
 
