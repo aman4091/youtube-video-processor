@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Execute the command via VastAI API directly (same as execute-command route)
     const response = await axios.post(
-      `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
+      `${VASTAI_API_URL}/instances/command/${instanceId}/`,
       { command },
       {
         headers: {

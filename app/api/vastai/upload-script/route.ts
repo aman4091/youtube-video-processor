@@ -36,7 +36,7 @@ chmod +x /workspace/${scriptName}`;
 
     // Execute the command via VastAI API directly
     const response = await axios.post(
-      `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
+      `${VASTAI_API_URL}/instances/command/${instanceId}/`,
       { command },
       {
         headers: {
