@@ -8,6 +8,7 @@ export interface User {
 export interface UserSettings {
   user_id: string;
   videos_per_day: number;
+  prompt_template?: string;
   created_at: string;
 }
 

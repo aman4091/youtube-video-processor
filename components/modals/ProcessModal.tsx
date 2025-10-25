@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { X, Copy, CheckCircle2, ArrowRight } from 'lucide-react';
 import { fetchTranscript } from '@/lib/api/supadata';
 import { updateScheduleItem } from '@/lib/db/videos';
+import { getUserSettings } from '@/lib/db/users';
 import { getNextSupadataApiKey, markApiKeyExhausted, deleteSupadataApiKey } from '@/lib/db/settings';
-import { getSharedSetting } from '@/lib/db/settings';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { countCharacters } from '@/lib/utils/helpers';
 import toast from 'react-hot-toast';
 import type { DailySchedule } from '@/types';
@@ -23,6 +24,7 @@ export default function ProcessModal({
   schedule,
   onUpdate,
 }: ProcessModalProps) {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
@@ -59,8 +61,9 @@ export default function ProcessModal({
   }, [currentIndex, isOpen]);
 
   const loadPromptTemplate = async () => {
-    const template = await getSharedSetting('prompt_template');
-    setPromptTemplate(template || '');
+    if (!user) return;
+    const userSettings = await getUserSettings(user.id);
+    setPromptTemplate(userSettings?.prompt_template || '');
   };
 
   const fetchCurrentTranscript = async () => {
