@@ -40,7 +40,10 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    console.log('VastAI logs response:', { status: response.status, dataLength: response.data?.length });
+    // Log full response to debug structure
+    console.log('VastAI logs full response:', JSON.stringify(response.data, null, 2));
+    console.log('VastAI logs response type:', typeof response.data);
+    console.log('VastAI logs response keys:', Object.keys(response.data || {}));
 
     return NextResponse.json({
       success: true,
