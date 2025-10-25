@@ -40,9 +40,12 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Log full response to debug output structure
+    console.log('VastAI execute script response:', JSON.stringify(response.data, null, 2));
+
     return NextResponse.json({
       success: true,
-      output: response.data.output || '',
+      output: response.data.output || response.data.stdout || response.data || '',
       message: `Script ${scriptName} executed successfully`,
     });
   } catch (error: any) {
