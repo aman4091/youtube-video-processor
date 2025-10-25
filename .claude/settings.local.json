@@ -8,7 +8,8 @@
       "WebSearch",
       "WebFetch(domain:docs.vast.ai)",
       "WebFetch(domain:vast.ai)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -67,7 +67,7 @@ export async function getUserVideos(userId: string): Promise<Video[]> {
 export async function getTodaySchedule(userId: string): Promise<DailySchedule[]> {
   const today = getTodayDate();
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('daily_schedule')
     .select(`
       *,
@@ -83,6 +83,42 @@ export async function getTodaySchedule(userId: string): Promise<DailySchedule[]>
   }
 
   return data || [];
+}
+
+// Get schedule for next 7 days
+export async function getWeekSchedule(userId: string): Promise<{ [date: string]: DailySchedule[] }> {
+  const dates: string[] = [];
+  const today = new Date();
+
+  // Generate next 7 days
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await supabase
+    .from('daily_schedule')
+    .select(`
+      *,
+      video:videos(*)
+    `)
+    .eq('user_id', userId)
+    .in('scheduled_date', dates)
+    .order('position');
+
+  if (error) {
+    console.error('Error fetching week schedule:', error);
+    return {};
+  }
+
+  // Group by date
+  const scheduleByDate: { [date: string]: DailySchedule[] } = {};
+  dates.forEach(date => {
+    scheduleByDate[date] = (data || []).filter(item => item.scheduled_date === date);
+  });
+
+  return scheduleByDate;
 }
 
 // Create daily schedule
