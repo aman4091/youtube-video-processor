@@ -34,6 +34,16 @@ export interface SupadataApiKey {
   created_at: string;
 }
 
+export interface PythonScript {
+  id: string;
+  name: string;
+  content: string;
+  is_default: boolean;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Video {
   id: string;
   channel_id: string;

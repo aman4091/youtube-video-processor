@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Server, Play, StopCircle, Send, Music } from 'lucide-react';
-import { rentGPUInstance, getInstanceStatus, executeCommands, stopInstance } from '@/lib/api/vastai';
+import { X, Server, Play, StopCircle, Send, Music, Code, Upload as UploadIcon } from 'lucide-react';
+import { rentGPUInstance, getInstanceStatus, executeCommands, stopInstance, uploadScriptToInstance, executeScriptOnInstance } from '@/lib/api/vastai';
 import { sendReferenceAudio, sendAllScripts } from '@/lib/api/telegram';
 import { getSharedSetting, getAllSharedSettings } from '@/lib/db/settings';
 import { getUserChannels } from '@/lib/db/channels';
+import { getAllScripts, getDefaultScript } from '@/lib/db/scripts';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import type { DailySchedule } from '@/types';
@@ -23,6 +24,8 @@ export default function VastAIModal({
 }: VastAIModalProps) {
   const { user } = useAuth();
   const [instanceId, setInstanceId] = useState<number | null>(null);
+  const [sshHost, setSshHost] = useState<string>('');
+  const [sshPort, setSshPort] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
@@ -66,6 +69,12 @@ export default function VastAIModal({
         if (statusInfo.status === 'running') {
           addLog('Instance is running!');
           setStatus('Instance running');
+          // Store SSH details
+          if (statusInfo.ssh_host && statusInfo.ssh_port) {
+            setSshHost(statusInfo.ssh_host);
+            setSshPort(statusInfo.ssh_port);
+            addLog(`SSH: ${statusInfo.ssh_host}:${statusInfo.ssh_port}`);
+          }
           break;
         }
 
@@ -80,7 +89,7 @@ export default function VastAIModal({
 
       // Execute commands
       const commands = commandsStr.split('\n').filter((cmd) => cmd.trim());
-      addLog(`Executing ${commands.length} commands...`);
+      addLog(`Executing ${commands.length} setup commands...`);
 
       const results = await executeCommands(vastaiKey, instance.id, commands);
 
@@ -91,6 +100,61 @@ export default function VastAIModal({
           addLog(`✗ Command ${index + 1}: Failed - ${result.output}`);
         }
       });
+
+      // Get instance status to get SSH details
+      const finalStatus = await getInstanceStatus(vastaiKey, instance.id);
+      if (finalStatus.ssh_host && finalStatus.ssh_port) {
+        setSshHost(finalStatus.ssh_host);
+        setSshPort(finalStatus.ssh_port);
+
+        // Upload Python scripts
+        addLog('Fetching Python scripts from database...');
+        const pythonScripts = await getAllScripts();
+
+        if (pythonScripts.length > 0) {
+          addLog(`Found ${pythonScripts.length} Python script(s) to upload`);
+
+          for (const script of pythonScripts) {
+            addLog(`Uploading ${script.name}.py...`);
+            const uploadResult = await uploadScriptToInstance(
+              finalStatus.ssh_host,
+              finalStatus.ssh_port,
+              `${script.name}.py`,
+              script.content
+            );
+
+            if (uploadResult.success) {
+              addLog(`✓ ${script.name}.py uploaded successfully`);
+            } else {
+              addLog(`✗ ${script.name}.py upload failed: ${uploadResult.error}`);
+            }
+          }
+
+          // Auto-run default script
+          const defaultScript = await getDefaultScript();
+          if (defaultScript) {
+            addLog(`Auto-running default script: ${defaultScript.name}.py`);
+            const execResult = await executeScriptOnInstance(
+              finalStatus.ssh_host,
+              finalStatus.ssh_port,
+              `${defaultScript.name}.py`
+            );
+
+            if (execResult.success) {
+              addLog(`✓ ${defaultScript.name}.py executed successfully`);
+              if (execResult.output) {
+                addLog(`Output: ${execResult.output.substring(0, 200)}...`);
+              }
+            } else {
+              addLog(`✗ ${defaultScript.name}.py execution failed: ${execResult.error}`);
+            }
+          } else {
+            addLog('No default script set for auto-run');
+          }
+        } else {
+          addLog('No Python scripts found in database');
+        }
+      }
 
       setStatus('Setup completed');
       toast.success('VastAI setup completed successfully!');
@@ -220,10 +284,10 @@ export default function VastAIModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b flex items-center justify-between bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+        <div className="p-6 border-b border-slate-700/50 flex items-center justify-between bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white">
           <div className="flex items-center gap-3">
             <Server className="h-7 w-7" />
             <div>
@@ -235,7 +299,7 @@ export default function VastAIModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-all"
+            className="p-2 hover:bg-white/20 rounded-lg transition-all"
           >
             <X className="h-6 w-6" />
           </button>
@@ -248,7 +312,7 @@ export default function VastAIModal({
             <button
               onClick={handleSetupVastAI}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-50 transform hover:scale-105"
             >
               <Play className="h-5 w-5" />
               Setup VastAI
@@ -257,7 +321,7 @@ export default function VastAIModal({
             <button
               onClick={handleSetReferenceAudio}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50 transform hover:scale-105"
             >
               <Music className="h-5 w-5" />
               Set Reference Audio
@@ -266,7 +330,7 @@ export default function VastAIModal({
             <button
               onClick={handleSendScripts}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 transition-all disabled:opacity-50 transform hover:scale-105"
             >
               <Send className="h-5 w-5" />
               Send Scripts
@@ -275,7 +339,7 @@ export default function VastAIModal({
             <button
               onClick={handleStopInstance}
               disabled={loading || !instanceId}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500 hover:to-pink-500 text-white rounded-xl font-semibold shadow-lg shadow-red-500/30 transition-all disabled:opacity-50 transform hover:scale-105"
             >
               <StopCircle className="h-5 w-5" />
               Stop Instance
@@ -284,22 +348,30 @@ export default function VastAIModal({
 
           {/* Instance Info */}
           {instanceId && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-purple-900">
-                Active Instance ID: <span className="font-mono">{instanceId}</span>
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+              <p className="text-sm font-medium text-purple-300">
+                Active Instance ID: <span className="font-mono text-white">{instanceId}</span>
               </p>
+              {sshHost && sshPort > 0 && (
+                <p className="text-sm font-medium text-purple-300 mt-2">
+                  SSH: <span className="font-mono text-white">{sshHost}:{sshPort}</span>
+                </p>
+              )}
             </div>
           )}
 
           {/* Logs */}
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Activity Logs</h3>
-            <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm h-64 overflow-y-auto">
+            <h3 className="font-semibold text-gray-300 mb-3 flex items-center gap-2">
+              <Code className="h-5 w-5" />
+              Activity Logs
+            </h3>
+            <div className="bg-slate-950 border border-slate-800 text-green-400 p-4 rounded-xl font-mono text-sm h-64 overflow-y-auto">
               {logs.length === 0 ? (
-                <p className="text-gray-500">No activity yet...</p>
+                <p className="text-gray-600">No activity yet...</p>
               ) : (
                 logs.map((log, index) => (
-                  <div key={index} className="mb-1">
+                  <div key={index} className="mb-1 hover:bg-slate-900/50 px-2 py-0.5 rounded transition-colors">
                     {log}
                   </div>
                 ))
@@ -309,10 +381,10 @@ export default function VastAIModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t flex justify-end">
+        <div className="p-6 border-t border-slate-700/50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+            className="px-6 py-3 border border-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-800/50 transition-all font-semibold"
           >
             Close
           </button>

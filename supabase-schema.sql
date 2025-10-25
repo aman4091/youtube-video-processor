@@ -88,6 +88,7 @@ ALTER TABLE shared_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supadata_api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE python_scripts ENABLE ROW LEVEL SECURITY;
 
 -- Public access policies (since this is a simple 2-user app)
 -- In production, you'd want more restrictive policies
@@ -113,6 +114,9 @@ CREATE POLICY "Allow all operations on videos" ON videos
 CREATE POLICY "Allow all operations on daily_schedule" ON daily_schedule
   FOR ALL USING (true) WITH CHECK (true);
 
+CREATE POLICY "Allow all operations on python_scripts" ON python_scripts
+  FOR ALL USING (true) WITH CHECK (true);
+
 -- Create initial default users (you can modify usernames)
 INSERT INTO users (username) VALUES ('User1'), ('User2')
 ON CONFLICT (username) DO NOTHING;
@@ -121,6 +125,17 @@ ON CONFLICT (username) DO NOTHING;
 INSERT INTO user_settings (user_id, videos_per_day)
 SELECT id, 16 FROM users
 ON CONFLICT (user_id) DO NOTHING;
+
+-- Python scripts table (for VastAI workspace)
+CREATE TABLE IF NOT EXISTS python_scripts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- Create default shared settings placeholders
 INSERT INTO shared_settings (key, value) VALUES

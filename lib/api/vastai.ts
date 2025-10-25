@@ -164,3 +164,73 @@ export async function executeCommands(
 
   return results;
 }
+
+// List all instances
+export async function listInstances(apiKey: string): Promise<VastAIInstance[]> {
+  try {
+    const response = await axios.get(`${VASTAI_API_URL}/instances/`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    });
+
+    return response.data.instances || [];
+  } catch (error: any) {
+    console.error('VastAI list instances error:', error.response?.data || error.message);
+    throw new Error('Failed to list instances');
+  }
+}
+
+// Upload script to instance (via our API proxy)
+export async function uploadScriptToInstance(
+  sshHost: string,
+  sshPort: number,
+  scriptName: string,
+  scriptContent: string
+): Promise<{ success: boolean; output?: string; error?: string }> {
+  try {
+    const response = await axios.post('/api/vastai/upload-script', {
+      sshHost,
+      sshPort,
+      scriptName,
+      scriptContent,
+    });
+
+    return {
+      success: true,
+      output: response.data.message,
+    };
+  } catch (error: any) {
+    console.error('Script upload error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to upload script',
+    };
+  }
+}
+
+// Execute script on instance (via our API proxy)
+export async function executeScriptOnInstance(
+  sshHost: string,
+  sshPort: number,
+  scriptName: string
+): Promise<{ success: boolean; output?: string; error?: string }> {
+  try {
+    const response = await axios.post('/api/vastai/execute-script', {
+      sshHost,
+      sshPort,
+      scriptName,
+    });
+
+    return {
+      success: true,
+      output: response.data.output,
+    };
+  } catch (error: any) {
+    console.error('Script execution error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.error || 'Failed to execute script',
+    };
+  }
+}
