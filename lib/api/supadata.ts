@@ -108,20 +108,40 @@ export async function fetchTranscript(
     return { transcript };
 
   } catch (error: any) {
+    // Log full error for debugging
+    console.error('[SupaData] Full error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      code: error.code
+    });
+
     if (error.response?.status === 401) {
       console.error('SupaData: 401 Unauthorized - check API key');
-      throw new Error('API_KEY_EXHAUSTED');
+      return { transcript: '', error: 'API_KEY_EXHAUSTED' };
     }
 
     if (error.response?.status === 429) {
       console.error('SupaData: 429 Rate limit - API key exhausted');
-      throw new Error('API_KEY_EXHAUSTED');
+      return { transcript: '', error: 'API_KEY_EXHAUSTED' };
     }
 
-    console.error('Supadata API Error:', error.response?.data || error.message);
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      console.error('SupaData: Request timeout');
+      return { transcript: '', error: 'Request timeout - video may be too long' };
+    }
+
+    if (error.code === 'ERR_NETWORK') {
+      console.error('SupaData: Network error');
+      return { transcript: '', error: 'Network error - check internet connection' };
+    }
+
+    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to fetch transcript';
+    console.error('Supadata API Error:', errorMessage);
     return {
       transcript: '',
-      error: error.message || 'Failed to fetch transcript',
+      error: errorMessage,
     };
   }
 }
