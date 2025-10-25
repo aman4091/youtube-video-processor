@@ -32,6 +32,8 @@ ${scriptContent}
 EOFSCRIPT
 chmod +x /workspace/${scriptName}`;
 
+    console.log('Uploading script to instance:', { instanceId, scriptName, commandLength: command.length });
+
     // Execute the command via VastAI API directly
     const response = await axios.post(
       `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
@@ -43,6 +45,9 @@ chmod +x /workspace/${scriptName}`;
         },
       }
     );
+
+    console.log('VastAI upload response status:', response.status);
+    console.log('VastAI upload response data:', JSON.stringify(response.data, null, 2));
 
     return NextResponse.json({
       success: true,
