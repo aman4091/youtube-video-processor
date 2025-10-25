@@ -10,11 +10,15 @@ export interface VastAIInstance {
 
 // Rent a GPU instance
 export async function rentGPUInstance(
-  instanceType: string = 'RTX3090'
-): Promise<VastAIInstance> {
+  instanceType: string = 'RTX 4090',
+  minVram: number = 60,
+  region: string = 'US'
+): Promise<VastAIInstance & { alternativeOffers?: any[] }> {
   try {
     const response = await axios.post('/api/vastai/rent-instance', {
       instanceType,
+      minVram,
+      region
     });
 
     return response.data;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Server, Play, StopCircle, Send, Music, Code, Upload as UploadIcon } from 'lucide-react';
+import { X, Server, Play, StopCircle, Send, Music, Code, Upload as UploadIcon, RefreshCw } from 'lucide-react';
 import { rentGPUInstance, getInstanceStatus, executeCommands, stopInstance, uploadScriptToInstance, executeScriptOnInstance } from '@/lib/api/vastai';
 import { sendReferenceAudio, sendAllScripts } from '@/lib/api/telegram';
 import { getSharedSetting, getAllSharedSettings } from '@/lib/db/settings';
@@ -29,6 +29,7 @@ export default function VastAIModal({
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
+  const [alternativeOffers, setAlternativeOffers] = useState<any[]>([]);
 
   const addLog = (message: string) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -39,10 +40,14 @@ export default function VastAIModal({
     try {
       const commandsStr = await getSharedSetting('vastai_commands');
 
-      addLog('Renting GPU instance...');
-      const instance = await rentGPUInstance();
+      addLog('Searching for RTX 4090 (60GB+) in North America...');
+      const instance = await rentGPUInstance('RTX 4090', 60, 'US');
       setInstanceId(instance.id);
+      setAlternativeOffers(instance.alternativeOffers || []);
       addLog(`Instance rented: ID ${instance.id}`);
+      if (instance.alternativeOffers && instance.alternativeOffers.length > 0) {
+        addLog(`Found ${instance.alternativeOffers.length} alternative instances available`);
+      }
 
       // Wait for instance to be ready
       addLog('Waiting for instance to start...');
@@ -266,6 +271,40 @@ export default function VastAIModal({
     }
   };
 
+  const handleTryNextInstance = async () => {
+    if (alternativeOffers.length === 0) {
+      toast.error('No alternative instances available');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Stop current instance if exists
+      if (instanceId) {
+        addLog(`Stopping current instance ${instanceId}...`);
+        await stopInstance(instanceId);
+        addLog('Current instance stopped');
+      }
+
+      // Try next instance
+      const nextOffer = alternativeOffers[0];
+      addLog(`Trying next instance: ${nextOffer.gpu} (${nextOffer.vram}GB) - $${nextOffer.price}/hr`);
+
+      // Remove this offer from alternatives
+      setAlternativeOffers(prev => prev.slice(1));
+
+      // Retry setup
+      await handleSetupVastAI();
+
+    } catch (error: any) {
+      addLog(`Error: ${error.message}`);
+      toast.error('Failed to try next instance');
+      console.error('Try next instance error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -330,6 +369,18 @@ export default function VastAIModal({
               Stop Instance
             </button>
           </div>
+
+          {/* Try Next Instance Button - Only show if alternatives exist */}
+          {alternativeOffers.length > 0 && (
+            <button
+              onClick={handleTryNextInstance}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white rounded-xl font-semibold shadow-lg shadow-orange-500/30 transition-all disabled:opacity-50 transform hover:scale-105"
+            >
+              <RefreshCw className="h-5 w-5" />
+              Try Next Instance ({alternativeOffers.length} available)
+            </button>
+          )}
 
           {/* Instance Info */}
           {instanceId && (

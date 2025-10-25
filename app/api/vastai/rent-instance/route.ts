@@ -6,7 +6,11 @@ const VASTAI_API_URL = 'https://cloud.vast.ai/api/v0';
 
 export async function POST(request: NextRequest) {
   try {
-    const { instanceType = 'RTX3090' } = await request.json();
+    const {
+      instanceType = 'RTX 4090',
+      minVram = 60,
+      region = 'US'
+    } = await request.json();
 
     // Get VastAI API key from settings
     const apiKey = await getSharedSetting('vastai_api_key');
@@ -44,38 +48,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter offers by GPU type and rentability
+    // Filter offers by GPU type, VRAM, location, and rentability
     const offers = allOffers
-      .filter((offer: any) =>
-        offer.gpu_name?.includes(instanceType) &&
-        offer.rentable === true &&
-        offer.verified === true
-      )
+      .filter((offer: any) => {
+        const matchesGPU = offer.gpu_name?.includes(instanceType);
+        const hasEnoughVRAM = (offer.gpu_ram || 0) >= minVram;
+        const inRegion = region === 'US' ?
+          (offer.geolocation?.includes('US') || offer.geolocation?.includes('CA')) :
+          true;
+        const isRentable = offer.rentable === true;
+        const isVerified = offer.verified === true;
+
+        return matchesGPU && hasEnoughVRAM && inRegion && isRentable && isVerified;
+      })
       .sort((a: any, b: any) => a.dph_total - b.dph_total); // Sort by price ascending
 
     console.log('VastAI: Filtered offers', {
       totalOffers: allOffers.length,
       filteredCount: offers.length,
-      requestedGPU: instanceType
+      requestedGPU: instanceType,
+      minVRAM: minVram,
+      region: region
     });
 
     if (offers.length === 0) {
-      console.error('VastAI: No matching instances found for', instanceType);
+      console.error('VastAI: No matching instances found', { instanceType, minVram, region });
       return NextResponse.json(
-        { error: `No available ${instanceType} instances found. Try a different GPU type (RTX3090, RTX4090, A100, etc.)` },
+        { error: `No ${instanceType} instances found with ${minVram}GB+ VRAM in ${region}. Try different specs or try again later.` },
         { status: 404 }
       );
     }
 
     const offer = offers[0];
-    console.log('VastAI: Found offer', { offerId: offer.id, price: offer.dph_total });
+    console.log('VastAI: Found offer', {
+      offerId: offer.id,
+      price: offer.dph_total,
+      gpu: offer.gpu_name,
+      vram: offer.gpu_ram,
+      location: offer.geolocation
+    });
 
-    // Rent the instance using PUT method
+    // Rent the instance using PUT method with PyTorch template
     const rentResponse = await axios.put(
       `${VASTAI_API_URL}/asks/${offer.id}/`,
       {
-        image: 'pytorch/pytorch:latest',
-        disk: 10,
+        image: 'pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime',
+        disk: 20,
         onstart: '',
       },
       {
@@ -93,6 +111,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: rentResponse.data.new_contract,
       status: 'renting',
+      alternativeOffers: offers.slice(1, 4).map((o: any) => ({
+        id: o.id,
+        gpu: o.gpu_name,
+        vram: o.gpu_ram,
+        price: o.dph_total,
+        location: o.geolocation
+      }))
     });
   } catch (error: any) {
     console.error('VastAI Rent Error Details:', {
