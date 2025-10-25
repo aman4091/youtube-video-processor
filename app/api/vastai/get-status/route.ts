@@ -36,21 +36,23 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // Log full response to debug structure
-    console.log('VastAI: Full status response:', JSON.stringify(response.data, null, 2));
+    // VastAI API returns data nested in 'instances' object
+    const instanceData = response.data.instances || response.data;
 
     console.log('VastAI: Status response:', {
-      id: response.data.id,
-      status: response.data.actual_status,
-      has_ssh: !!response.data.ssh_host
+      id: instanceData.id,
+      status: instanceData.actual_status,
+      has_ssh: !!instanceData.ssh_host,
+      ssh_host: instanceData.ssh_host,
+      ssh_port: instanceData.ssh_port
     });
 
     return NextResponse.json({
-      id: response.data.id,
-      status: response.data.actual_status,
-      ssh_host: response.data.ssh_host,
-      ssh_port: response.data.ssh_port,
-      public_ipaddr: response.data.public_ipaddr,
+      id: instanceData.id,
+      status: instanceData.actual_status,
+      ssh_host: instanceData.ssh_host,
+      ssh_port: instanceData.ssh_port,
+      public_ipaddr: instanceData.public_ipaddr,
     });
   } catch (error: any) {
     console.error('VastAI Status Error:', {
