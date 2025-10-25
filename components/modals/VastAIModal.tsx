@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Server, Play, StopCircle, Send, Music, Code, Upload as UploadIcon, RefreshCw } from 'lucide-react';
-import { rentGPUInstance, getInstanceStatus, executeCommands, stopInstance, uploadScriptToInstance, executeScriptOnInstance } from '@/lib/api/vastai';
+import { rentGPUInstance, getInstanceStatus, executeCommands, stopInstance, uploadScriptToInstance, executeScriptOnInstance, getInstanceLogs } from '@/lib/api/vastai';
 import { sendReferenceAudio, sendAllScripts } from '@/lib/api/telegram';
 import { getSharedSetting, getAllSharedSettings } from '@/lib/db/settings';
 import { getUserChannels } from '@/lib/db/channels';
@@ -32,6 +32,8 @@ export default function VastAIModal({
   const [status, setStatus] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
   const [alternativeOffers, setAlternativeOffers] = useState<any[]>([]);
+  const [isPollingLogs, setIsPollingLogs] = useState(false);
+  const [lastLogCount, setLastLogCount] = useState(0);
 
   const addLog = (message: string) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -60,6 +62,36 @@ export default function VastAIModal({
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [instanceId, status]);
+
+  // Poll logs when script is running (real-time terminal output)
+  useEffect(() => {
+    if (!isPollingLogs || !instanceId) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const result = await getInstanceLogs(instanceId, 50); // Last 50 lines
+
+        if (result.success && result.logs) {
+          const logLines = result.logs.split('\n').filter((line: string) => line.trim());
+
+          // Only add new logs (compare count to avoid duplicates)
+          if (logLines.length > lastLogCount) {
+            const newLines = logLines.slice(lastLogCount);
+            newLines.forEach((line: string) => {
+              if (line.trim()) {
+                addLog(`[LOG] ${line}`);
+              }
+            });
+            setLastLogCount(logLines.length);
+          }
+        }
+      } catch (error) {
+        console.error('Log polling error:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isPollingLogs, instanceId, lastLogCount]);
 
   const handleSetupVastAI = async () => {
     setLoading(true);
@@ -157,26 +189,23 @@ export default function VastAIModal({
           const defaultScript = await getDefaultScript();
           if (defaultScript) {
             addLog(`Auto-running default script: ${defaultScript.name}.py`);
+
+            // Start real-time log polling for terminal-like output
+            addLog('Starting real-time log monitoring...');
+            setIsPollingLogs(true);
+            setLastLogCount(0);
+
             const execResult = await executeScriptOnInstance(
               instance.id,
               `${defaultScript.name}.py`
             );
 
             if (execResult.success) {
-              addLog(`✓ ${defaultScript.name}.py executed successfully`);
-              if (execResult.output) {
-                addLog(`--- Script Output Start ---`);
-                // Split output by newlines and log each line
-                const outputLines = execResult.output.split('\n');
-                outputLines.forEach((line) => {
-                  if (line.trim()) {  // Only log non-empty lines
-                    addLog(line);
-                  }
-                });
-                addLog(`--- Script Output End ---`);
-              }
+              addLog(`✓ ${defaultScript.name}.py execution initiated`);
+              addLog('📺 Check activity logs below for real-time output...');
             } else {
               addLog(`✗ ${defaultScript.name}.py execution failed: ${execResult.error}`);
+              setIsPollingLogs(false); // Stop polling on error
             }
           } else {
             addLog('No default script set for auto-run');
@@ -294,6 +323,7 @@ export default function VastAIModal({
       addLog('Instance stopped successfully');
       setStatus('Instance stopped');
       setInstanceId(null);
+      setIsPollingLogs(false); // Stop log polling when instance is stopped
 
       toast.success('Instance stopped successfully!');
     } catch (error: any) {
