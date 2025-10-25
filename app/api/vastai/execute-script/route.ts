@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
     // Execute the Python script
     const command = `cd /workspace && python3 ${scriptName}`;
 
-    // Execute the command via VastAI API directly
+    console.log('Executing Python script:', { instanceId, scriptName, command });
+
+    // Execute the command via VastAI API directly (same as execute-command route)
     const response = await axios.post(
       `${VASTAI_API_URL}/instances/${instanceId}/execute/`,
       { command },
@@ -41,7 +43,8 @@ export async function POST(request: NextRequest) {
     );
 
     // Log full response to debug output structure
-    console.log('VastAI execute script response:', JSON.stringify(response.data, null, 2));
+    console.log('VastAI execute response status:', response.status);
+    console.log('VastAI execute response data:', JSON.stringify(response.data, null, 2));
 
     return NextResponse.json({
       success: true,
