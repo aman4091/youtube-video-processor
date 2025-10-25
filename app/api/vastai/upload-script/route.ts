@@ -34,8 +34,8 @@ chmod +x /workspace/${scriptName}`;
 
     console.log('Uploading script to instance:', { instanceId, scriptName, commandLength: command.length });
 
-    // Execute the command via VastAI API directly
-    const response = await axios.post(
+    // Execute the command via VastAI API directly (using PUT method)
+    const response = await axios.put(
       `${VASTAI_API_URL}/instances/command/${instanceId}/`,
       { command },
       {

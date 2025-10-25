@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await axios.post(
+    const response = await axios.put(
       `${VASTAI_API_URL}/instances/command/${instanceId}/`,
       {
         command,

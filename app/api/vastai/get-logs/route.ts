@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Reading logs from file:', { logFile, command });
 
-    // Execute command to read log file
-    const response = await axios.post(
+    // Execute command to read log file (using PUT method)
+    const response = await axios.put(
       `${VASTAI_API_URL}/instances/command/${instanceId}/`,
       { command },
       {

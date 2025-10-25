@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Executing Python script in background:', { instanceId, scriptName, command, logFile });
 
-    // Execute the command via VastAI API directly (same as execute-command route)
-    const response = await axios.post(
+    // Execute the command via VastAI API directly (using PUT method)
+    const response = await axios.put(
       `${VASTAI_API_URL}/instances/command/${instanceId}/`,
       { command },
       {
