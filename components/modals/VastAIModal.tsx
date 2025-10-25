@@ -37,16 +37,10 @@ export default function VastAIModal({
   const handleSetupVastAI = async () => {
     setLoading(true);
     try {
-      const vastaiKey = await getSharedSetting('vastai_api_key');
       const commandsStr = await getSharedSetting('vastai_commands');
 
-      if (!vastaiKey) {
-        toast.error('VastAI API key not set. Please add it in Settings.');
-        return;
-      }
-
       addLog('Renting GPU instance...');
-      const instance = await rentGPUInstance(vastaiKey);
+      const instance = await rentGPUInstance();
       setInstanceId(instance.id);
       addLog(`Instance rented: ID ${instance.id}`);
 
@@ -59,7 +53,7 @@ export default function VastAIModal({
 
       while (attempts < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
-        const statusInfo = await getInstanceStatus(vastaiKey, instance.id);
+        const statusInfo = await getInstanceStatus(instance.id);
 
         if (statusInfo.status === 'running') {
           addLog('Instance is running!');
@@ -87,7 +81,7 @@ export default function VastAIModal({
         const commands = commandsStr.split('\n').filter((cmd) => cmd.trim());
         addLog(`Executing ${commands.length} setup commands...`);
 
-        const results = await executeCommands(vastaiKey, instance.id, commands);
+        const results = await executeCommands(instance.id, commands);
 
         results.forEach((result, index) => {
           if (result.success) {
@@ -101,7 +95,7 @@ export default function VastAIModal({
       }
 
       // Get instance status to get SSH details
-      const finalStatus = await getInstanceStatus(vastaiKey, instance.id);
+      const finalStatus = await getInstanceStatus(instance.id);
       if (finalStatus.ssh_host && finalStatus.ssh_port) {
         setSshHost(finalStatus.ssh_host);
         setSshPort(finalStatus.ssh_port);
@@ -255,14 +249,8 @@ export default function VastAIModal({
 
     setLoading(true);
     try {
-      const vastaiKey = await getSharedSetting('vastai_api_key');
-      if (!vastaiKey) {
-        toast.error('VastAI API key not found');
-        return;
-      }
-
       addLog(`Stopping instance ${instanceId}...`);
-      await stopInstance(vastaiKey, instanceId);
+      await stopInstance(instanceId);
 
       addLog('Instance stopped successfully');
       setStatus('Instance stopped');

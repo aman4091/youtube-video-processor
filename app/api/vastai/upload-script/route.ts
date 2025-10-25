@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeCommand } from '@/lib/api/vastai';
-import { getSharedSetting } from '@/lib/db/settings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,16 +12,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get VastAI API key
-    const vastaiKey = await getSharedSetting('vastai_api_key');
-
-    if (!vastaiKey) {
-      return NextResponse.json(
-        { error: 'VastAI API key not configured' },
-        { status: 500 }
-      );
-    }
-
     // Create the Python script file using cat with heredoc
     // This avoids issues with special characters and multiline content
     const command = `cat > /workspace/${scriptName} << 'EOFSCRIPT'
@@ -31,7 +20,7 @@ EOFSCRIPT
 chmod +x /workspace/${scriptName}`;
 
     // Execute the command via VastAI API
-    const result = await executeCommand(vastaiKey, instanceId, command);
+    const result = await executeCommand(instanceId, command);
 
     if (!result.success) {
       return NextResponse.json(

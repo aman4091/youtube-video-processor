@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-const VASTAI_API_URL = 'https://cloud.vast.ai/api/v0';
-
 export interface VastAIInstance {
   id: number;
   status: string;
@@ -12,110 +10,52 @@ export interface VastAIInstance {
 
 // Rent a GPU instance
 export async function rentGPUInstance(
-  apiKey: string,
   instanceType: string = 'RTX3090'
 ): Promise<VastAIInstance> {
   try {
-    // Search for available offers
-    const searchResponse = await axios.get(`${VASTAI_API_URL}/bundles`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      params: {
-        gpu_name: instanceType,
-        order: 'dph_total',
-        limit: 1,
-      },
+    const response = await axios.post('/api/vastai/rent-instance', {
+      instanceType,
     });
 
-    if (!searchResponse.data?.offers?.[0]) {
-      throw new Error('No available instances found');
-    }
-
-    const offer = searchResponse.data.offers[0];
-
-    // Rent the instance
-    const rentResponse = await axios.post(
-      `${VASTAI_API_URL}/asks/${offer.id}/`,
-      {
-        image: 'pytorch/pytorch:latest',
-        disk: 10,
-        onstart: '',
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    return {
-      id: rentResponse.data.new_contract,
-      status: 'renting',
-    };
+    return response.data;
   } catch (error: any) {
     console.error('VastAI Rent Error:', error.response?.data || error.message);
-    throw new Error('Failed to rent GPU instance');
+    throw new Error(error.response?.data?.error || 'Failed to rent GPU instance');
   }
 }
 
 // Get instance status
 export async function getInstanceStatus(
-  apiKey: string,
   instanceId: number
 ): Promise<VastAIInstance> {
   try {
-    const response = await axios.get(
-      `${VASTAI_API_URL}/instances/${instanceId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      }
-    );
+    const response = await axios.post('/api/vastai/get-status', {
+      instanceId,
+    });
 
-    return {
-      id: response.data.id,
-      status: response.data.actual_status,
-      ssh_host: response.data.ssh_host,
-      ssh_port: response.data.ssh_port,
-      public_ipaddr: response.data.public_ipaddr,
-    };
+    return response.data;
   } catch (error: any) {
     console.error('VastAI Status Error:', error.response?.data || error.message);
-    throw new Error('Failed to get instance status');
+    throw new Error(error.response?.data?.error || 'Failed to get instance status');
   }
 }
 
 // Execute command on instance
 export async function executeCommand(
-  apiKey: string,
   instanceId: number,
   command: string
 ): Promise<{ output: string; success: boolean }> {
   try {
-    const response = await axios.post(
-      `${VASTAI_API_URL}/instances/${instanceId}/execute`,
-      {
-        command,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await axios.post('/api/vastai/execute-command', {
+      instanceId,
+      command,
+    });
 
-    return {
-      output: response.data.output || '',
-      success: true,
-    };
+    return response.data;
   } catch (error: any) {
     console.error('VastAI Execute Error:', error.response?.data || error.message);
     return {
-      output: error.response?.data?.message || 'Command execution failed',
+      output: error.response?.data?.output || 'Command execution failed',
       success: false,
     };
   }
@@ -123,33 +63,29 @@ export async function executeCommand(
 
 // Stop instance
 export async function stopInstance(
-  apiKey: string,
   instanceId: number
 ): Promise<boolean> {
   try {
-    await axios.delete(`${VASTAI_API_URL}/instances/${instanceId}/`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
+    await axios.post('/api/vastai/stop-instance', {
+      instanceId,
     });
 
     return true;
   } catch (error: any) {
     console.error('VastAI Stop Error:', error.response?.data || error.message);
-    throw new Error('Failed to stop instance');
+    throw new Error(error.response?.data?.error || 'Failed to stop instance');
   }
 }
 
 // Execute multiple commands sequentially
 export async function executeCommands(
-  apiKey: string,
   instanceId: number,
   commands: string[]
 ): Promise<Array<{ command: string; output: string; success: boolean }>> {
   const results: Array<{ command: string; output: string; success: boolean }> = [];
 
   for (const command of commands) {
-    const result = await executeCommand(apiKey, instanceId, command);
+    const result = await executeCommand(instanceId, command);
     results.push({
       command,
       output: result.output,
@@ -163,22 +99,6 @@ export async function executeCommands(
   }
 
   return results;
-}
-
-// List all instances
-export async function listInstances(apiKey: string): Promise<VastAIInstance[]> {
-  try {
-    const response = await axios.get(`${VASTAI_API_URL}/instances/`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-    });
-
-    return response.data.instances || [];
-  } catch (error: any) {
-    console.error('VastAI list instances error:', error.response?.data || error.message);
-    throw new Error('Failed to list instances');
-  }
 }
 
 // Upload script to instance (via our API proxy)
