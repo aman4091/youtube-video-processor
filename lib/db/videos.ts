@@ -71,7 +71,7 @@ export async function getTodaySchedule(userId: string): Promise<DailySchedule[]>
     .from('daily_schedule')
     .select(`
       *,
-      videos(*)
+      video:videos(*)
     `)
     .eq('user_id', userId)
     .eq('scheduled_date', today)
