@@ -40,8 +40,8 @@ export default function VastAIModal({
     try {
       const commandsStr = await getSharedSetting('vastai_commands');
 
-      addLog('Searching for RTX 4090 (60GB+) in North America...');
-      const instance = await rentGPUInstance('RTX 4090', 60, 'US');
+      addLog('Searching for RTX 4090 (24GB) in North America...');
+      const instance = await rentGPUInstance('RTX 4090', 20, 'US');
       setInstanceId(instance.id);
       setAlternativeOffers(instance.alternativeOffers || []);
       addLog(`Instance rented: ID ${instance.id}`);

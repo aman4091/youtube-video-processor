@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     const {
       instanceType = 'RTX 4090',
-      minVram = 60,
+      minVram = 20, // RTX 4090 has 24GB, so 20GB minimum
       region = 'US'
     } = await request.json();
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (offers.length === 0) {
       console.error('VastAI: No matching instances found', { instanceType, minVram, region });
       return NextResponse.json(
-        { error: `No ${instanceType} instances found with ${minVram}GB+ VRAM in ${region}. Try different specs or try again later.` },
+        { error: `No ${instanceType} instances found with ${minVram}GB+ VRAM in ${region === 'US' ? 'North America' : region}. Try different specs or try again later.` },
         { status: 404 }
       );
     }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       `${VASTAI_API_URL}/asks/${offer.id}/`,
       {
         image: 'pytorch/pytorch:2.0.1-cuda11.8-cudnn8-runtime',
-        disk: 20,
+        disk: 60, // 60GB storage requirement
         onstart: '',
       },
       {
