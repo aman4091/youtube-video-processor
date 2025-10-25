@@ -43,6 +43,17 @@ CREATE TABLE IF NOT EXISTS supadata_api_keys (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Python scripts table (for VastAI workspace)
+CREATE TABLE IF NOT EXISTS python_scripts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Videos table
 CREATE TABLE IF NOT EXISTS videos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -79,6 +90,8 @@ CREATE INDEX IF NOT EXISTS idx_videos_views ON videos(views DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_schedule_user_date ON daily_schedule(user_id, scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_daily_schedule_status ON daily_schedule(status);
 CREATE INDEX IF NOT EXISTS idx_supadata_keys_active ON supadata_api_keys(is_active, priority);
+CREATE INDEX IF NOT EXISTS idx_python_scripts_order ON python_scripts(order_index);
+CREATE INDEX IF NOT EXISTS idx_python_scripts_default ON python_scripts(is_default) WHERE is_default = true;
 
 -- Row Level Security (RLS) Policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -125,17 +138,6 @@ ON CONFLICT (username) DO NOTHING;
 INSERT INTO user_settings (user_id, videos_per_day)
 SELECT id, 16 FROM users
 ON CONFLICT (user_id) DO NOTHING;
-
--- Python scripts table (for VastAI workspace)
-CREATE TABLE IF NOT EXISTS python_scripts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  content TEXT NOT NULL,
-  is_default BOOLEAN DEFAULT FALSE,
-  order_index INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
 
 -- Create default shared settings placeholders
 INSERT INTO shared_settings (key, value) VALUES
