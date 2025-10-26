@@ -171,11 +171,6 @@ export default function VastAIGuidePage() {
                 <p className="text-gray-300 mb-3">
                   Upar diye gaye credentials use karke <strong>https://cloud.vast.ai/login</strong> pe login karo.
                 </p>
-                <img
-                  src="/guides/vastai/step-1-login.png"
-                  alt="VastAI Login Page"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -191,11 +186,6 @@ export default function VastAIGuidePage() {
                 <p className="text-gray-300 mb-3">
                   Login hone ke baad, left sidebar mein "Search" ya "Create Instance" option pe click karo.
                 </p>
-                <img
-                  src="/guides/vastai/step-2-search.png"
-                  alt="VastAI Search Instance"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -215,11 +205,6 @@ export default function VastAIGuidePage() {
                   <li>Sabse sasta instance select karo jo available hai</li>
                   <li><strong>"Rent"</strong> button pe click karo</li>
                 </ul>
-                <img
-                  src="/guides/vastai/step-3-filters.png"
-                  alt="VastAI Filters"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -235,11 +220,6 @@ export default function VastAIGuidePage() {
                 <p className="text-gray-300 mb-3">
                   Left sidebar mein "Instances" pe click karo. Tumhara rent kiya hua instance dikhega with status.
                 </p>
-                <img
-                  src="/guides/vastai/step-4-instances.png"
-                  alt="VastAI Instances List"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -259,11 +239,6 @@ export default function VastAIGuidePage() {
                   <li><strong>"Open"</strong> button pe click karo</li>
                   <li>Agar Open button kaam nahi kar raha to instance <strong>Destroy</strong> karo aur naya rent karo</li>
                 </ul>
-                <img
-                  src="/guides/vastai/step-5-open.png"
-                  alt="VastAI Instance Open Button"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -279,11 +254,6 @@ export default function VastAIGuidePage() {
                 <p className="text-gray-300 mb-3">
                   "Open" button click karne se Jupyter interface khulega. Left panel mein <strong>"workspace"</strong> folder pe navigate karo.
                 </p>
-                <img
-                  src="/guides/vastai/step-6-jupyter.png"
-                  alt="Jupyter Workspace Interface"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -304,11 +274,6 @@ export default function VastAIGuidePage() {
                   <li>auto_setup_and_run_bot.py</li>
                   <li>final_working_bot.py</li>
                 </ul>
-                <img
-                  src="/guides/vastai/step-7-upload.png"
-                  alt="Jupyter Upload Files"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -338,11 +303,6 @@ export default function VastAIGuidePage() {
                     <Copy className="h-5 w-5" />
                   </button>
                 </div>
-                <img
-                  src="/guides/vastai/step-8-terminal.png"
-                  alt="Jupyter Terminal"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -367,11 +327,6 @@ export default function VastAIGuidePage() {
                 <p className="text-gray-300 mt-3">
                   Jab <strong>"✅ Queue processing finished"</strong> dikhe, tab telegram bot polling start ho jayegi.
                 </p>
-                <img
-                  src="/guides/vastai/step-9-completion.png"
-                  alt="Terminal Completion Messages"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -391,11 +346,6 @@ export default function VastAIGuidePage() {
                   <li><strong>"Reference Audio"</strong> button click karo - Telegram pe reference audio send hogi</li>
                   <li><strong>"Send Scripts"</strong> button click karo - Telegram pe saari scripts send hongi</li>
                 </ul>
-                <img
-                  src="/guides/vastai/step-10-telegram.png"
-                  alt="Telegram Bot Interaction"
-                  className="rounded-lg border border-slate-700 w-full mt-4"
-                />
               </div>
             </div>
           </div>
@@ -439,11 +389,6 @@ export default function VastAIGuidePage() {
                 <p className="text-gray-300 mb-4">
                   Instances page pe jao → Apna instance select karo → <strong>"Destroy"</strong> button click karo
                 </p>
-                <img
-                  src="/guides/vastai/step-12-destroy.png"
-                  alt="VastAI Destroy Instance"
-                  className="rounded-lg border border-red-500 w-full"
-                />
               </div>
             </div>
           </div>
