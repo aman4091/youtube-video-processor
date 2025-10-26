@@ -85,13 +85,13 @@ export async function getTodaySchedule(userId: string): Promise<DailySchedule[]>
   return data || [];
 }
 
-// Get schedule for next 7 days
+// Get schedule for date range (last 5 days + next 7 days = 12 days total)
 export async function getWeekSchedule(userId: string): Promise<{ [date: string]: DailySchedule[] }> {
   const dates: string[] = [];
   const today = new Date();
 
-  // Generate next 7 days
-  for (let i = 0; i < 7; i++) {
+  // Generate last 5 days + today + next 6 days (total 12 days)
+  for (let i = -5; i <= 6; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     dates.push(date.toISOString().split('T')[0]);
@@ -119,6 +119,31 @@ export async function getWeekSchedule(userId: string): Promise<{ [date: string]:
   });
 
   return scheduleByDate;
+}
+
+// Get video IDs scheduled in last N days (for uniqueness check)
+export async function getRecentlyScheduledVideoIds(
+  userId: string,
+  days: number = 15
+): Promise<string[]> {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const startDateStr = startDate.toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('daily_schedule')
+    .select('video_id')
+    .eq('user_id', userId)
+    .gte('scheduled_date', startDateStr);
+
+  if (error) {
+    console.error('Error fetching recently scheduled videos:', error);
+    return [];
+  }
+
+  // Return unique video IDs
+  const videoIds = (data || []).map(item => item.video_id);
+  return [...new Set(videoIds)];
 }
 
 // Create daily schedule

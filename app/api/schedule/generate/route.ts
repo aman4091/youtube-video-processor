@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserSettings } from '@/lib/db/users';
-import { getUserVideos, createDailySchedule, scheduleExistsForDate } from '@/lib/db/videos';
+import { getUserVideos, createDailySchedule, scheduleExistsForDate, getRecentlyScheduledVideoIds } from '@/lib/db/videos';
 import { shuffleArray, getTodayDate } from '@/lib/utils/helpers';
 
 export async function POST(request: NextRequest) {
@@ -28,10 +28,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get videos scheduled in last 15 days (for uniqueness check)
+    const recentlyScheduledIds = await getRecentlyScheduledVideoIds(userId, 15);
+    console.log(`Found ${recentlyScheduledIds.length} videos scheduled in last 15 days`);
+
+    // Filter out recently scheduled videos
+    const availableVideos = allVideos.filter(
+      video => !recentlyScheduledIds.includes(video.id)
+    );
+
+    console.log(`Available videos after 15-day filter: ${availableVideos.length} / ${allVideos.length}`);
+
+    if (availableVideos.length === 0) {
+      return NextResponse.json(
+        { error: 'No unique videos available. All videos were scheduled in last 15 days.' },
+        { status: 400 }
+      );
+    }
+
     // Generate schedules for next 7 days
     const today = new Date();
     const schedulesCreated: string[] = [];
     let totalVideosScheduled = 0;
+    const usedVideoIds = new Set<string>(); // Track videos used across days
 
     for (let i = 0; i < 7; i++) {
       const targetDate = new Date(today);
@@ -45,9 +64,19 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Filter out videos already used in this batch
+      const videosForThisDay = availableVideos.filter(v => !usedVideoIds.has(v.id));
+
+      if (videosForThisDay.length < videosPerDay) {
+        console.log(`Not enough unique videos for ${scheduleDate}: ${videosForThisDay.length} available, ${videosPerDay} needed`);
+      }
+
       // Randomly select videos for this day
-      const shuffled = shuffleArray([...allVideos]); // Create new shuffled array each time
+      const shuffled = shuffleArray([...videosForThisDay]);
       const selectedVideos = shuffled.slice(0, Math.min(videosPerDay, shuffled.length));
+
+      // Mark these videos as used
+      selectedVideos.forEach(v => usedVideoIds.add(v.id));
 
       // Create schedule for this date
       const videoIds = selectedVideos.map((v) => v.id);

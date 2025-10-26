@@ -25,12 +25,13 @@ export default function DashboardPage() {
   const [fetchingVideos, setFetchingVideos] = useState(false);
   const [sendingScripts, setSendingScripts] = useState(false);
   const [sendingAudio, setSendingAudio] = useState(false);
+  const [selectedScriptIds, setSelectedScriptIds] = useState<Set<string>>(new Set());
 
-  // Generate next 7 days
-  const getNext7Days = () => {
+  // Generate last 5 days + today + next 6 days (12 days total)
+  const get12Days = () => {
     const dates: string[] = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = -5; i <= 6; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
@@ -62,6 +63,11 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchSchedule();
   }, [user]);
+
+  // Clear selection when date changes
+  useEffect(() => {
+    setSelectedScriptIds(new Set());
+  }, [selectedDate]);
 
   const handleRefresh = () => {
     fetchSchedule();
@@ -130,8 +136,13 @@ export default function DashboardPage() {
   const handleSendScripts = async () => {
     if (!user) return;
 
+    if (selectedScriptIds.size === 0) {
+      toast.error('Please select at least one script to send');
+      return;
+    }
+
     setSendingScripts(true);
-    const loadingToast = toast.loading('Sending scripts to Telegram...');
+    const loadingToast = toast.loading(`Sending ${selectedScriptIds.size} scripts to Telegram...`);
 
     try {
       const settings = await getAllSharedSettings();
@@ -142,22 +153,24 @@ export default function DashboardPage() {
         throw new Error('Telegram credentials not set. Please add them in Settings.');
       }
 
-      // Get all completed scripts from the selected date
+      // Get selected completed scripts from the selected date
       const schedule = weekSchedule[selectedDate] || [];
-      const completedSchedule = schedule.filter(
-        (item) => item.status === 'completed' && item.processed_script
+      const selectedItems = schedule.filter(
+        (item) => selectedScriptIds.has(item.id) && item.status === 'completed' && item.processed_script
       );
 
-      if (completedSchedule.length === 0) {
-        throw new Error('No completed scripts to send for this date');
+      if (selectedItems.length === 0) {
+        throw new Error('No valid scripts selected to send');
       }
 
-      const scripts = completedSchedule.map((item) => item.processed_script!);
+      const scripts = selectedItems.map((item) => item.processed_script!);
 
       const result = await sendAllScripts(botToken, chatId, scripts);
 
       if (result.sent > 0) {
         toast.success(`${result.sent} scripts sent successfully!`, { id: loadingToast });
+        // Clear selection after successful send
+        setSelectedScriptIds(new Set());
       }
 
       if (result.failed > 0) {
@@ -167,6 +180,31 @@ export default function DashboardPage() {
       toast.error(error.message, { id: loadingToast });
     } finally {
       setSendingScripts(false);
+    }
+  };
+
+  const toggleScriptSelection = (id: string) => {
+    const newSelection = new Set(selectedScriptIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedScriptIds(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    const schedule = weekSchedule[selectedDate] || [];
+    const completedItems = schedule.filter(
+      (item) => item.status === 'completed' && item.processed_script
+    );
+
+    if (selectedScriptIds.size === completedItems.length) {
+      // Deselect all
+      setSelectedScriptIds(new Set());
+    } else {
+      // Select all completed
+      setSelectedScriptIds(new Set(completedItems.map(item => item.id)));
     }
   };
 
@@ -217,7 +255,7 @@ export default function DashboardPage() {
     );
   }
 
-  const next7Days = getNext7Days();
+  const days12 = get12Days();
   const schedule = weekSchedule[selectedDate] || [];
   const completedCount = schedule.filter((s) => s.status === 'completed').length;
   const totalCount = schedule.length;
@@ -226,24 +264,32 @@ export default function DashboardPage() {
   // Get day name from date
   const getDayName = (dateStr: string) => {
     const date = new Date(dateStr);
-    const today = new Date(getTodayDate());
-    if (dateStr === getTodayDate()) return 'Today';
-    if (dateStr === new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0]) return 'Tomorrow';
+    const today = getTodayDate();
+    const todayDate = new Date(today);
+    const tomorrow = new Date(todayDate);
+    tomorrow.setDate(todayDate.getDate() + 1);
+    const yesterday = new Date(todayDate);
+    yesterday.setDate(todayDate.getDate() - 1);
+
+    if (dateStr === today) return 'Today';
+    if (dateStr === tomorrow.toISOString().split('T')[0]) return 'Tomorrow';
+    if (dateStr === yesterday.toISOString().split('T')[0]) return 'Yesterday';
+
     return date.toLocaleDateString('en-US', { weekday: 'short' });
   };
 
   // Navigate dates
   const goToPreviousDate = () => {
-    const currentIndex = next7Days.indexOf(selectedDate);
+    const currentIndex = days12.indexOf(selectedDate);
     if (currentIndex > 0) {
-      setSelectedDate(next7Days[currentIndex - 1]);
+      setSelectedDate(days12[currentIndex - 1]);
     }
   };
 
   const goToNextDate = () => {
-    const currentIndex = next7Days.indexOf(selectedDate);
-    if (currentIndex < next7Days.length - 1) {
-      setSelectedDate(next7Days[currentIndex + 1]);
+    const currentIndex = days12.indexOf(selectedDate);
+    if (currentIndex < days12.length - 1) {
+      setSelectedDate(days12[currentIndex + 1]);
     }
   };
 
@@ -255,7 +301,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent mb-2">
-                7 Days Schedule
+                Schedule (Last 5 + Next 7 Days)
               </h1>
               <p className="text-gray-400 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -277,7 +323,7 @@ export default function DashboardPage() {
           <div className="mt-6 flex items-center gap-3">
             <button
               onClick={goToPreviousDate}
-              disabled={next7Days.indexOf(selectedDate) === 0}
+              disabled={days12.indexOf(selectedDate) === 0}
               className="p-2 bg-slate-800/50 border border-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -285,7 +331,7 @@ export default function DashboardPage() {
 
             <div className="flex-1 overflow-x-auto scrollbar-hide">
               <div className="flex gap-2">
-                {next7Days.map((date) => {
+                {days12.map((date) => {
                   const dateObj = new Date(date);
                   const isSelected = date === selectedDate;
                   const isToday = date === getTodayDate();
@@ -329,7 +375,7 @@ export default function DashboardPage() {
 
             <button
               onClick={goToNextDate}
-              disabled={next7Days.indexOf(selectedDate) === next7Days.length - 1}
+              disabled={days12.indexOf(selectedDate) === days12.length - 1}
               className="p-2 bg-slate-800/50 border border-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronRight className="h-5 w-5" />
@@ -411,6 +457,56 @@ export default function DashboardPage() {
               >
                 Generate Schedule
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Script Selection (for completed scripts) */}
+        {schedule.length > 0 && schedule.filter(s => s.status === 'completed' && s.processed_script).length > 0 && (
+          <div className="mb-6 bg-slate-800/30 backdrop-blur-sm border border-slate-700/30 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Send className="h-5 w-5 text-green-400" />
+                Select Scripts to Send ({selectedScriptIds.size} selected)
+              </h3>
+              <button
+                onClick={toggleSelectAll}
+                className="px-4 py-2 bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 rounded-lg hover:bg-indigo-600/30 transition-all text-sm font-medium"
+              >
+                {selectedScriptIds.size === schedule.filter(s => s.status === 'completed' && s.processed_script).length
+                  ? 'Deselect All'
+                  : 'Select All'}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {schedule
+                .filter((item) => item.status === 'completed' && item.processed_script)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => toggleScriptSelection(item.id)}
+                    className={`flex items-start gap-3 p-4 rounded-lg border transition-all cursor-pointer ${
+                      selectedScriptIds.has(item.id)
+                        ? 'bg-indigo-600/20 border-indigo-500/50'
+                        : 'bg-slate-700/30 border-slate-600/30 hover:border-indigo-500/30'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedScriptIds.has(item.id)}
+                      onChange={() => {}} // Handled by div onClick
+                      className="mt-1 rounded bg-slate-700 border-slate-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-white text-sm truncate">
+                        {item.video?.title || 'Untitled'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {item.processed_chars?.toLocaleString()} chars • Position {item.position + 1}
+                      </p>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
         )}
