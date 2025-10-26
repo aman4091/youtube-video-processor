@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllScripts, addScript } from '@/lib/db/scripts';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/scripts - Get all Python scripts
 export async function GET() {
   try {

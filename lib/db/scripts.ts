@@ -99,6 +99,22 @@ export async function updateScript(
   return true;
 }
 
+// Get script by ID
+export async function getScriptById(id: string): Promise<PythonScript | null> {
+  const { data, error } = await supabase
+    .from('python_scripts')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching script by ID:', error);
+    return null;
+  }
+
+  return data;
+}
+
 // Delete Python script
 export async function deleteScript(id: string): Promise<boolean> {
   const { error } = await supabase

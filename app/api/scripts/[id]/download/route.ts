@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { getScriptById } from '@/lib/db/scripts';
+
+export const dynamic = 'force-dynamic';
 
 // GET /api/scripts/[id]/download - Download Python script
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { data: script, error } = await supabase
-      .from('python_scripts')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    const { id } = await context.params;
+    const script = await getScriptById(id);
 
-    if (error || !script) {
+    if (!script) {
       return NextResponse.json(
         { error: 'Script not found' },
         { status: 404 }

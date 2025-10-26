@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateScript, deleteScript } from '@/lib/db/scripts';
 
+export const dynamic = 'force-dynamic';
+
 // PUT /api/scripts/[id] - Update Python script
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -29,7 +32,7 @@ export async function PUT(
     const content = await file.text();
 
     // Update in database
-    const success = await updateScript(params.id, {
+    const success = await updateScript(id, {
       name: file.name,
       content,
     });
@@ -57,10 +60,11 @@ export async function PUT(
 // DELETE /api/scripts/[id] - Delete Python script
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const success = await deleteScript(params.id);
+    const { id } = await context.params;
+    const success = await deleteScript(id);
 
     if (!success) {
       return NextResponse.json(
