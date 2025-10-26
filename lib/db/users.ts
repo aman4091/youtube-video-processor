@@ -33,10 +33,10 @@ export async function getUserByUsername(username: string): Promise<User | null> 
 }
 
 // Create new user
-export async function createUser(username: string): Promise<User | null> {
+export async function createUser(username: string, pin: string = '0000'): Promise<User | null> {
   const { data, error } = await supabase
     .from('users')
-    .insert({ username })
+    .insert({ username, pin })
     .select()
     .single();
 
@@ -46,6 +46,53 @@ export async function createUser(username: string): Promise<User | null> {
   }
 
   return data;
+}
+
+// Verify user PIN
+export async function verifyUserPin(username: string, pin: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('username', username)
+    .eq('pin', pin)
+    .single();
+
+  if (error) {
+    console.error('Error verifying PIN:', error);
+    return null;
+  }
+
+  return data;
+}
+
+// Update user PIN
+export async function updateUserPin(userId: string, newPin: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('users')
+    .update({ pin: newPin })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating PIN:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Rename user
+export async function renameUser(userId: string, newUsername: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('users')
+    .update({ username: newUsername })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error renaming user:', error);
+    return false;
+  }
+
+  return true;
 }
 
 // Get user settings

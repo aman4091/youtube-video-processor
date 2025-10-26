@@ -1,18 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { getAllUsers } from '@/lib/db/users';
+import { getAllUsers, verifyUserPin, renameUser } from '@/lib/db/users';
+import { User as LucideUser, Edit2, Check, X } from 'lucide-react';
 import type { User } from '@/types';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, login } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [pin, setPin] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [newUsername, setNewUsername] = useState('');
+  const pinRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
 
   useEffect(() => {
     // Redirect if already logged in
@@ -25,30 +36,12 @@ export default function LoginPage() {
     const fetchUsers = async () => {
       try {
         const fetchedUsers = await getAllUsers();
-
         if (fetchedUsers.length > 0) {
           setUsers(fetchedUsers);
-          setSelectedUser(fetchedUsers[0].username);
-        } else {
-          // Fallback: Use default users if database is empty
-          const defaultUsers = [
-            { id: '1', username: 'User1', created_at: new Date().toISOString() },
-            { id: '2', username: 'User2', created_at: new Date().toISOString() },
-          ];
-          setUsers(defaultUsers);
-          setSelectedUser(defaultUsers[0].username);
-          setError('Using default users. Please configure Supabase properly.');
         }
       } catch (err) {
-        // Fallback: Use default users if database connection fails
-        const defaultUsers = [
-          { id: '1', username: 'User1', created_at: new Date().toISOString() },
-          { id: '2', username: 'User2', created_at: new Date().toISOString() },
-        ];
-        setUsers(defaultUsers);
-        setSelectedUser(defaultUsers[0].username);
-        setError('Database connection failed. Using default users. Please check Supabase settings.');
         console.error('Error fetching users:', err);
+        toast.error('Failed to load users');
       } finally {
         setLoading(false);
       }
@@ -57,20 +50,90 @@ export default function LoginPage() {
     fetchUsers();
   }, [user, router]);
 
-  const handleLogin = async () => {
+  const handleUserSelect = (user: User) => {
+    setSelectedUser(user);
+    setPin(['', '', '', '']);
+    // Focus first PIN input
+    setTimeout(() => pinRefs[0].current?.focus(), 100);
+  };
+
+  const handlePinChange = (index: number, value: string) => {
+    // Only allow digits
+    if (value && !/^\d$/.test(value)) return;
+
+    const newPin = [...pin];
+    newPin[index] = value;
+    setPin(newPin);
+
+    // Auto-focus next input
+    if (value && index < 3) {
+      pinRefs[index + 1].current?.focus();
+    }
+
+    // Auto-submit when 4 digits entered
+    if (index === 3 && value) {
+      const fullPin = newPin.join('');
+      handleLogin(fullPin);
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !pin[index] && index > 0) {
+      pinRefs[index - 1].current?.focus();
+    }
+  };
+
+  const handleLogin = async (pinValue: string) => {
     if (!selectedUser) {
-      setError('Please select a user');
+      toast.error('Please select a user');
       return;
     }
 
-    const userToLogin = users.find((u) => u.username === selectedUser);
-    if (!userToLogin) {
-      setError('User not found');
+    if (pinValue.length !== 4) {
+      toast.error('Please enter 4-digit PIN');
       return;
     }
 
-    login(userToLogin);
-    router.push('/dashboard');
+    setLoggingIn(true);
+
+    try {
+      const verifiedUser = await verifyUserPin(selectedUser.username, pinValue);
+
+      if (verifiedUser) {
+        login(verifiedUser);
+        toast.success(`Welcome ${verifiedUser.username}!`);
+        router.push('/dashboard');
+      } else {
+        toast.error('Invalid PIN');
+        setPin(['', '', '', '']);
+        pinRefs[0].current?.focus();
+      }
+    } catch (error) {
+      toast.error('Login failed');
+      console.error('Login error:', error);
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleRename = async (userId: string) => {
+    if (!newUsername.trim()) {
+      toast.error('Please enter a username');
+      return;
+    }
+
+    const success = await renameUser(userId, newUsername.trim());
+
+    if (success) {
+      toast.success('User renamed successfully');
+      // Refresh users
+      const fetchedUsers = await getAllUsers();
+      setUsers(fetchedUsers);
+      setEditingUser(null);
+      setNewUsername('');
+    } else {
+      toast.error('Failed to rename user');
+    }
   };
 
   if (loading) {
@@ -95,10 +158,10 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-10 w-full max-w-md">
+      <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-10 w-full max-w-2xl">
         <div className="text-center mb-10">
           <div className="mb-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/50 animate-bounce-slow">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg shadow-indigo-500/50">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -108,60 +171,115 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent mb-3">
             Welcome Back!
           </h1>
-          <p className="text-gray-400 text-lg">YouTube Video Processor</p>
+          <p className="text-gray-400 text-lg">Select user and enter PIN</p>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl backdrop-blur-sm animate-shake">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <p className="text-red-300 text-sm leading-relaxed">{error}</p>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-6">
+          {/* User Selection */}
           <div>
-            <label
-              htmlFor="user-select"
-              className="block text-sm font-semibold text-gray-300 mb-3"
-            >
-              Aap kaun hain?
+            <label className="block text-sm font-semibold text-gray-300 mb-3">
+              Select User
             </label>
-            <div className="relative">
-              <select
-                id="user-select"
-                value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
-                className="w-full px-4 py-4 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none cursor-pointer hover:bg-slate-700/70"
-              >
-                {users.map((user) => (
-                  <option key={user.id} value={user.username} className="bg-slate-800 text-white py-2">
-                    {user.username}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {users.map((u) => (
+                <div key={u.id} className="relative">
+                  <button
+                    onClick={() => handleUserSelect(u)}
+                    className={`w-full p-4 rounded-xl border transition-all ${
+                      selectedUser?.id === u.id
+                        ? 'bg-indigo-600/20 border-indigo-500/50 text-white'
+                        : 'bg-slate-700/30 border-slate-600/30 text-gray-300 hover:border-indigo-500/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <LucideUser className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="text-left flex-1">
+                        {editingUser === u.id ? (
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              value={newUsername}
+                              onChange={(e) => setNewUsername(e.target.value)}
+                              className="px-2 py-1 bg-slate-800 border border-slate-600 rounded text-sm text-white w-full"
+                              placeholder="New name"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleRename(u.id)}
+                              className="p-1 bg-green-600 rounded hover:bg-green-500"
+                            >
+                              <Check className="h-4 w-4 text-white" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingUser(null);
+                                setNewUsername('');
+                              }}
+                              className="p-1 bg-red-600 rounded hover:bg-red-500"
+                            >
+                              <X className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="font-medium">{u.username}</p>
+                            <p className="text-xs text-gray-500">PIN: ****</p>
+                          </>
+                        )}
+                      </div>
+                      {editingUser !== u.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingUser(u.id);
+                            setNewUsername(u.username);
+                          }}
+                          className="p-2 hover:bg-slate-600/50 rounded-lg transition-colors"
+                        >
+                          <Edit2 className="h-4 w-4 text-gray-400" />
+                        </button>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
-          <button
-            onClick={handleLogin}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white py-4 px-6 rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Enter →
-          </button>
+          {/* PIN Input */}
+          {selectedUser && (
+            <div className="animate-in fade-in duration-300">
+              <label className="block text-sm font-semibold text-gray-300 mb-3">
+                Enter 4-Digit PIN for {selectedUser.username}
+              </label>
+              <div className="flex gap-3 justify-center">
+                {pin.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={pinRefs[index]}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handlePinChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    disabled={loggingIn}
+                    className="w-16 h-16 text-center text-2xl font-bold bg-slate-700/50 border border-slate-600/50 rounded-xl text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-50"
+                  />
+                ))}
+              </div>
+              <p className="text-center text-gray-500 text-sm mt-3">
+                Default PIN: 0000
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 text-center">
           <p className="text-gray-500 text-sm">
-            Simple authentication for 2 users
+            4 users • PIN-based authentication
           </p>
         </div>
       </div>

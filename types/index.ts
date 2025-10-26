@@ -2,6 +2,7 @@
 export interface User {
   id: string;
   username: string;
+  pin: string;
   created_at: string;
 }
 

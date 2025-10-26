@@ -7,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   username TEXT UNIQUE NOT NULL,
+  pin TEXT NOT NULL DEFAULT '0000',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -14,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS user_settings (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   videos_per_day INTEGER NOT NULL DEFAULT 16,
+  prompt_template TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -130,8 +132,12 @@ CREATE POLICY "Allow all operations on daily_schedule" ON daily_schedule
 CREATE POLICY "Allow all operations on python_scripts" ON python_scripts
   FOR ALL USING (true) WITH CHECK (true);
 
--- Create initial default users (you can modify usernames)
-INSERT INTO users (username) VALUES ('User1'), ('User2')
+-- Create initial default users with PINs
+INSERT INTO users (username, pin) VALUES
+  ('User1', '0000'),
+  ('User2', '0000'),
+  ('User3', '0000'),
+  ('User4', '0000')
 ON CONFLICT (username) DO NOTHING;
 
 -- Create default user settings
