@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { getUserSettings, updateUserSettings } from '@/lib/db/users';
+import { getUserSettings, updateUserSettings, updateUserPin } from '@/lib/db/users';
 import { getUserChannels, addSourceChannel, deleteSourceChannel } from '@/lib/db/channels';
 import {
   getAllSharedSettings,
@@ -22,6 +22,7 @@ import {
   FileText,
   User,
   Settings as SettingsIcon,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { SourceChannel, SupadataApiKey } from '@/types';
@@ -32,6 +33,9 @@ export default function SettingsPage() {
   // User-specific settings
   const [videosPerDay, setVideosPerDay] = useState(16);
   const [promptTemplate, setPromptTemplate] = useState('');
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
   const [channels, setChannels] = useState<SourceChannel[]>([]);
   const [newChannel, setNewChannel] = useState({
     url: '',
@@ -48,6 +52,7 @@ export default function SettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [changingPin, setChangingPin] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -101,6 +106,56 @@ export default function SettingsPage() {
       toast.error('Failed to save user settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePin = async () => {
+    if (!user) return;
+
+    if (!currentPin || !newPin || !confirmPin) {
+      toast.error('Please fill all PIN fields');
+      return;
+    }
+
+    if (currentPin !== user.pin) {
+      toast.error('Current PIN is incorrect');
+      return;
+    }
+
+    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      toast.error('New PIN must be exactly 4 digits');
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      toast.error('New PIN and Confirm PIN do not match');
+      return;
+    }
+
+    setChangingPin(true);
+    const loadingToast = toast.loading('Changing PIN...');
+
+    try {
+      const success = await updateUserPin(user.id, newPin);
+
+      if (success) {
+        toast.success('PIN changed successfully! Please login again.', { id: loadingToast });
+        // Clear PIN fields
+        setCurrentPin('');
+        setNewPin('');
+        setConfirmPin('');
+        // Logout after 2 seconds
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else {
+        toast.error('Failed to change PIN', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Error changing PIN:', error);
+      toast.error('Failed to change PIN', { id: loadingToast });
+    } finally {
+      setChangingPin(false);
     }
   };
 
@@ -268,6 +323,75 @@ export default function SettingsPage() {
                 <Save className="h-4 w-4" />
                 Save User Settings
               </button>
+
+              {/* Change PIN Section */}
+              <div className="pt-6 mt-6 border-t border-slate-700/50">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-yellow-400" />
+                  Change PIN
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      Current PIN
+                    </label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={currentPin}
+                      onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
+                      placeholder="****"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        New PIN (4 digits)
+                      </label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={newPin}
+                        onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
+                        placeholder="****"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        Confirm New PIN
+                      </label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={confirmPin}
+                        onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
+                        placeholder="****"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleChangePin}
+                    disabled={changingPin}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white rounded-xl font-semibold shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 transition-all disabled:opacity-50 transform hover:scale-105"
+                  >
+                    <Lock className="h-4 w-4" />
+                    {changingPin ? 'Changing...' : 'Change PIN'}
+                  </button>
+
+                  <p className="text-xs text-gray-500">
+                    After changing PIN, you will be logged out and need to login again with the new PIN.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
