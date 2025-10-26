@@ -23,9 +23,12 @@ import {
   User,
   Settings as SettingsIcon,
   Lock,
+  FileCode,
+  Upload,
+  Download,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { SourceChannel, SupadataApiKey } from '@/types';
+import type { SourceChannel, SupadataApiKey, PythonScript } from '@/types';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -50,6 +53,10 @@ export default function SettingsPage() {
   const [supadataKeys, setSupadataKeys] = useState<SupadataApiKey[]>([]);
   const [newSupadataKey, setNewSupadataKey] = useState('');
 
+  // Python scripts
+  const [pythonScripts, setPythonScripts] = useState<PythonScript[]>([]);
+  const [uploadingScript, setUploadingScript] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [changingPin, setChangingPin] = useState(false);
@@ -62,6 +69,10 @@ export default function SettingsPage() {
     if (!user) return;
 
     try {
+      // Fetch Python scripts
+      const scriptsResponse = await fetch('/api/scripts');
+      const scriptsData = await scriptsResponse.json();
+
       const [userSettings, userChannels, sharedSettings, apiKeys] =
         await Promise.all([
           getUserSettings(user.id),
@@ -77,6 +88,7 @@ export default function SettingsPage() {
       setTelegramBotToken(sharedSettings.telegram_bot_token || '');
       setTelegramChatId(sharedSettings.telegram_chat_id || '');
       setSupadataKeys(apiKeys);
+      setPythonScripts(scriptsData.scripts || []);
     } catch (error) {
       console.error('Error loading settings:', error);
       toast.error('Failed to load settings');
@@ -244,6 +256,76 @@ export default function SettingsPage() {
     }
   };
 
+  const handleUploadScript = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.py')) {
+      toast.error('Only Python (.py) files are allowed');
+      return;
+    }
+
+    setUploadingScript(true);
+    const loadingToast = toast.loading('Uploading script...');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/scripts', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Script "${file.name}" uploaded successfully!`, { id: loadingToast });
+        await loadSettings(); // Reload scripts
+      } else {
+        toast.error(data.error || 'Failed to upload script', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Error uploading script:', error);
+      toast.error('Failed to upload script', { id: loadingToast });
+    } finally {
+      setUploadingScript(false);
+      // Reset input
+      event.target.value = '';
+    }
+  };
+
+  const handleDeleteScript = async (id: string, name: string) => {
+    const confirmed = confirm(`Delete "${name}"?`);
+    if (!confirmed) return;
+
+    const loadingToast = toast.loading('Deleting script...');
+
+    try {
+      const response = await fetch(`/api/scripts/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Script deleted successfully!', { id: loadingToast });
+        setPythonScripts(pythonScripts.filter((s) => s.id !== id));
+      } else {
+        toast.error(data.error || 'Failed to delete script', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Error deleting script:', error);
+      toast.error('Failed to delete script', { id: loadingToast });
+    }
+  };
+
+  const handleDownloadScript = (id: string, name: string) => {
+    // Open download link in new tab
+    window.open(`/api/scripts/${id}/download`, '_blank');
+    toast.success(`Downloading ${name}`);
+  };
+
 
   if (loading) {
     return (
@@ -392,6 +474,85 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Python Scripts (VastAI) */}
+          <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-xl flex items-center justify-center">
+                <FileCode className="h-5 w-5 text-green-400" />
+              </div>
+              VastAI Python Scripts (Shared)
+            </h2>
+
+            <p className="text-sm text-gray-400 mb-6">
+              Upload Python scripts that will be used on VastAI instances. These files will be available in the VastAI Guide page for download.
+            </p>
+
+            {/* Existing Scripts */}
+            <div className="space-y-3 mb-6">
+              {pythonScripts.map((script) => (
+                <div
+                  key={script.id}
+                  className="flex items-center gap-3 p-4 bg-slate-700/30 border border-slate-600/30 rounded-xl group hover:border-green-500/30 transition-all"
+                >
+                  <FileCode className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">{script.name}</p>
+                    <p className="text-xs text-gray-400">
+                      Uploaded: {new Date(script.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDownloadScript(script.id, script.name)}
+                      className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all border border-transparent hover:border-blue-500/20"
+                      title="Download"
+                    >
+                      <Download className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteScript(script.id, script.name)}
+                      className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {pythonScripts.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <FileCode className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>No Python scripts uploaded yet</p>
+                  <p className="text-sm mt-1">Upload your first script below</p>
+                </div>
+              )}
+            </div>
+
+            {/* Upload New Script */}
+            <div className="border-t border-slate-700/50 pt-6">
+              <h3 className="font-semibold text-white mb-4">Upload Python Script</h3>
+              <div className="flex items-center gap-3">
+                <label className="flex-1 flex items-center gap-3 px-4 py-3 bg-slate-700/50 border-2 border-dashed border-slate-600/50 rounded-xl cursor-pointer hover:border-green-500/50 hover:bg-slate-700/70 transition-all">
+                  <Upload className="h-5 w-5 text-gray-400" />
+                  <span className="text-gray-400">
+                    {uploadingScript ? 'Uploading...' : 'Choose Python file (.py)'}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".py"
+                    onChange={handleUploadScript}
+                    disabled={uploadingScript}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                Recommended files: k.py, auto_setup_and_run_bot.py, final_working_bot.py
+              </p>
             </div>
           </div>
 

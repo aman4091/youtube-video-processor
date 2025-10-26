@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
-import { Menu, X, Calendar, Settings, LogOut, PlayCircle } from 'lucide-react';
+import { Menu, X, Calendar, Settings, LogOut, PlayCircle, Server } from 'lucide-react';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,6 +13,7 @@ export default function Sidebar() {
 
   const navigation = [
     { name: 'Schedule', href: '/dashboard', icon: Calendar },
+    { name: 'VastAI Guide', href: '/vastai-guide', icon: Server },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
