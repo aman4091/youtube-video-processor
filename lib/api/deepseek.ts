@@ -73,7 +73,7 @@ async function processChunk(
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 60000, // 60 seconds
+        timeout: 300000, // 300 seconds (5 minutes)
       }
     );
 
@@ -85,7 +85,13 @@ async function processChunk(
 
     return processedText.trim();
   } catch (error: any) {
-    console.error('[DeepSeek] Chunk processing error:', error);
+    console.error('[DeepSeek] Chunk processing error:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      code: error.code
+    });
 
     if (error.response?.status === 401) {
       throw new Error('Invalid DeepSeek API key');
@@ -96,7 +102,7 @@ async function processChunk(
     }
 
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      throw new Error('DeepSeek API timeout');
+      throw new Error('DeepSeek API timeout - chunk too large, try smaller chunk size');
     }
 
     throw new Error(error.response?.data?.error?.message || error.message || 'DeepSeek API error');
