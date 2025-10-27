@@ -81,7 +81,7 @@ export async function fetchTranscript(
       params: {
         url: youtubeUrl,
         text: true,  // Return plain text instead of timestamped chunks
-        mode: 'auto' // Try native first, fallback to AI generation
+        mode: 'native' // Only use native YouTube transcripts (fast)
       },
       headers: {
         'x-api-key': apiKey,
@@ -156,7 +156,7 @@ export async function testSupadataApiKey(apiKey: string): Promise<boolean> {
         params: {
           url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Sample video
           text: true,
-          mode: 'auto'
+          mode: 'native'
         },
         headers: {
           'x-api-key': apiKey,
