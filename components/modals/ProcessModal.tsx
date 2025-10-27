@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Copy, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Zap, Sparkles } from 'lucide-react';
+import { X, Copy, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Zap, Sparkles, RotateCcw } from 'lucide-react';
 import { fetchTranscript } from '@/lib/api/supadata';
 import { updateScheduleItem } from '@/lib/db/videos';
 import { getUserSettings } from '@/lib/db/users';
@@ -36,6 +36,10 @@ export default function ProcessModal({
   const [processingAll, setProcessingAll] = useState(false);
   const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0 });
 
+  // Version management for processed scripts
+  const [scriptVersions, setScriptVersions] = useState<string[]>([]);
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
+
   const currentItem = schedule[currentIndex];
   const transcriptChars = countCharacters(transcript);
   const processedChars = countCharacters(processedScript);
@@ -60,7 +64,12 @@ export default function ProcessModal({
         setTranscript('');
         fetchCurrentTranscript();
       }
-      setProcessedScript(currentItem.processed_script || '');
+
+      // Initialize versions
+      const existingScript = currentItem.processed_script || '';
+      setProcessedScript(existingScript);
+      setScriptVersions(existingScript ? [existingScript] : []);
+      setCurrentVersionIndex(0);
     }
   }, [currentIndex, isOpen]);
 
@@ -180,17 +189,13 @@ export default function ProcessModal({
         return;
       }
 
-      // Update processed script
+      // Add as new version
+      const newVersions = [...scriptVersions, result.processedText];
+      setScriptVersions(newVersions);
+      setCurrentVersionIndex(newVersions.length - 1);
       setProcessedScript(result.processedText);
 
-      // Auto-save to database
-      await updateScheduleItem(currentItem.id, {
-        processed_script: result.processedText,
-        processed_chars: countCharacters(result.processedText),
-      });
-
-      toast.success('Transcript processed and saved!', { id: 'processing' });
-      onUpdate();
+      toast.success(`Transcript processed! Version ${newVersions.length} created.`, { id: 'processing' });
     } catch (error: any) {
       console.error('Auto process error:', error);
       toast.error('Failed to process transcript: ' + error.message, { id: 'processing' });
@@ -297,6 +302,23 @@ export default function ProcessModal({
     }
   };
 
+  // Version switcher handlers
+  const handlePreviousVersion = () => {
+    if (currentVersionIndex > 0) {
+      const newIndex = currentVersionIndex - 1;
+      setCurrentVersionIndex(newIndex);
+      setProcessedScript(scriptVersions[newIndex]);
+    }
+  };
+
+  const handleNextVersion = () => {
+    if (currentVersionIndex < scriptVersions.length - 1) {
+      const newIndex = currentVersionIndex + 1;
+      setCurrentVersionIndex(newIndex);
+      setProcessedScript(scriptVersions[newIndex]);
+    }
+  };
+
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
@@ -329,6 +351,8 @@ export default function ProcessModal({
         setCurrentIndex(currentIndex + 1);
         setTranscript('');
         setProcessedScript('');
+        setScriptVersions([]);
+        setCurrentVersionIndex(0);
       } else {
         toast.success('All scripts processed!');
         onClose();
@@ -484,6 +508,44 @@ export default function ProcessModal({
               className="w-full h-48 p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white font-mono text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               placeholder="Paste your processed script here..."
             />
+
+            {/* Retry and Version Switcher */}
+            {scriptVersions.length > 0 && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                {/* Version Switcher */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePreviousVersion}
+                    disabled={currentVersionIndex === 0 || processing || processingAll}
+                    className="px-4 py-2 bg-slate-800/50 border border-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium"
+                    title="Previous Version"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-sm text-gray-400 font-medium">
+                    Version {currentVersionIndex + 1} of {scriptVersions.length}
+                  </span>
+                  <button
+                    onClick={handleNextVersion}
+                    disabled={currentVersionIndex === scriptVersions.length - 1 || processing || processingAll}
+                    className="px-4 py-2 bg-slate-800/50 border border-slate-700/50 text-gray-300 rounded-lg hover:bg-slate-700/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium"
+                    title="Next Version"
+                  >
+                    Next →
+                  </button>
+                </div>
+
+                {/* Retry Button */}
+                <button
+                  onClick={handleAutoThisOne}
+                  disabled={!transcript || processing || processingAll}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-lg font-medium shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
