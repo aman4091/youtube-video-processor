@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Copy, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, Copy, CheckCircle2, ArrowRight, ChevronLeft, ChevronRight, Zap, Sparkles } from 'lucide-react';
 import { fetchTranscript } from '@/lib/api/supadata';
 import { updateScheduleItem } from '@/lib/db/videos';
 import { getUserSettings } from '@/lib/db/users';
-import { getNextSupadataApiKey, markApiKeyExhausted, deleteSupadataApiKey } from '@/lib/db/settings';
+import { getNextSupadataApiKey, markApiKeyExhausted, deleteSupadataApiKey, getSharedSetting } from '@/lib/db/settings';
+import { processTranscriptInChunks } from '@/lib/api/deepseek';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { countCharacters } from '@/lib/utils/helpers';
 import toast from 'react-hot-toast';
@@ -31,6 +32,9 @@ export default function ProcessModal({
   const [transcript, setTranscript] = useState('');
   const [processedScript, setProcessedScript] = useState('');
   const [promptTemplate, setPromptTemplate] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [processingAll, setProcessingAll] = useState(false);
+  const [chunkProgress, setChunkProgress] = useState({ current: 0, total: 0 });
 
   const currentItem = schedule[currentIndex];
   const transcriptChars = countCharacters(transcript);
@@ -132,6 +136,177 @@ export default function ProcessModal({
     const textToCopy = `${promptTemplate}\n\n${transcript}`;
     navigator.clipboard.writeText(textToCopy);
     toast.success('Copied to clipboard');
+  };
+
+  const handleAutoThisOne = async () => {
+    if (!transcript || !transcript.trim()) {
+      toast.error('No transcript to process');
+      return;
+    }
+
+    if (!promptTemplate || !promptTemplate.trim()) {
+      toast.error('No prompt template found. Please add one in Settings.');
+      return;
+    }
+
+    setProcessing(true);
+    setChunkProgress({ current: 0, total: 0 });
+
+    try {
+      // Get DeepSeek API key
+      const apiKey = await getSharedSetting('deepseek_api_key');
+
+      if (!apiKey) {
+        toast.error('DeepSeek API key not found. Please add it in Settings.');
+        setProcessing(false);
+        return;
+      }
+
+      toast.loading('Processing transcript with DeepSeek...', { id: 'processing' });
+
+      // Process transcript
+      const result = await processTranscriptInChunks(
+        transcript,
+        promptTemplate,
+        apiKey,
+        (current, total) => {
+          setChunkProgress({ current, total });
+        }
+      );
+
+      if (result.error) {
+        toast.error(result.error, { id: 'processing' });
+        setProcessing(false);
+        return;
+      }
+
+      // Update processed script
+      setProcessedScript(result.processedText);
+
+      // Auto-save to database
+      await updateScheduleItem(currentItem.id, {
+        processed_script: result.processedText,
+        processed_chars: countCharacters(result.processedText),
+      });
+
+      toast.success('Transcript processed and saved!', { id: 'processing' });
+      onUpdate();
+    } catch (error: any) {
+      console.error('Auto process error:', error);
+      toast.error('Failed to process transcript: ' + error.message, { id: 'processing' });
+    } finally {
+      setProcessing(false);
+      setChunkProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const handleAutoAll = async () => {
+    if (processingAll) return;
+
+    const confirmed = confirm(
+      `Process all ${schedule.length} transcripts automatically?\n\nThis will process each script one by one with DeepSeek AI.`
+    );
+
+    if (!confirmed) return;
+
+    setProcessingAll(true);
+
+    try {
+      // Get API key and prompt once
+      const apiKey = await getSharedSetting('deepseek_api_key');
+
+      if (!apiKey) {
+        toast.error('DeepSeek API key not found. Please add it in Settings.');
+        setProcessingAll(false);
+        return;
+      }
+
+      if (!promptTemplate || !promptTemplate.trim()) {
+        toast.error('No prompt template found. Please add one in Settings.');
+        setProcessingAll(false);
+        return;
+      }
+
+      // Process each item sequentially
+      for (let i = 0; i < schedule.length; i++) {
+        setCurrentIndex(i);
+        const item = schedule[i];
+
+        toast.loading(`Processing video ${i + 1} of ${schedule.length}...`, { id: 'auto-all' });
+
+        // Fetch transcript if not exists
+        let transcriptText = item.transcript || '';
+        if (!transcriptText) {
+          const supadataApiKey = await getNextSupadataApiKey();
+          if (supadataApiKey) {
+            const result = await fetchTranscript(item.video!.video_id, supadataApiKey.api_key);
+            if (!result.error) {
+              transcriptText = result.transcript;
+              await updateScheduleItem(item.id, {
+                transcript: transcriptText,
+                transcript_chars: countCharacters(transcriptText),
+              });
+            }
+          }
+        }
+
+        if (!transcriptText) {
+          toast.error(`Skipping video ${i + 1}: No transcript available`);
+          continue;
+        }
+
+        // Process with DeepSeek
+        const result = await processTranscriptInChunks(
+          transcriptText,
+          promptTemplate,
+          apiKey,
+          (current, total) => {
+            setChunkProgress({ current, total });
+          }
+        );
+
+        if (result.error) {
+          toast.error(`Error processing video ${i + 1}: ${result.error}`);
+          continue;
+        }
+
+        // Save result
+        await updateScheduleItem(item.id, {
+          processed_script: result.processedText,
+          processed_chars: countCharacters(result.processedText),
+          status: 'completed',
+        });
+
+        setProcessedScript(result.processedText);
+        onUpdate();
+
+        toast.success(`Video ${i + 1} of ${schedule.length} completed!`, { id: 'auto-all' });
+
+        // Small delay between items
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      toast.success('All transcripts processed successfully!', { id: 'auto-all' });
+      onClose();
+    } catch (error: any) {
+      console.error('Auto all error:', error);
+      toast.error('Failed to process all transcripts: ' + error.message, { id: 'auto-all' });
+    } finally {
+      setProcessingAll(false);
+      setChunkProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < schedule.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
   };
 
   const handleSubmitAndNext = async () => {
@@ -243,14 +418,54 @@ export default function ProcessModal({
                 placeholder="Transcript will appear here..."
               />
             )}
-            <button
-              onClick={handleCopyPromptAndTranscript}
-              disabled={!transcript}
-              className="mt-3 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
-            >
-              <Copy className="h-4 w-4" />
-              Copy Prompt + Transcript
-            </button>
+            <div className="flex gap-3 mt-3 flex-wrap">
+              <button
+                onClick={handleCopyPromptAndTranscript}
+                disabled={!transcript}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <Copy className="h-4 w-4" />
+                Copy Prompt + Transcript
+              </button>
+
+              <button
+                onClick={handleAutoThisOne}
+                disabled={!transcript || processing || processingAll}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-semibold shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <Zap className="h-4 w-4" />
+                Auto This One
+              </button>
+
+              <button
+                onClick={handleAutoAll}
+                disabled={processing || processingAll}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white rounded-xl font-semibold shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+              >
+                <Sparkles className="h-4 w-4" />
+                Auto All
+              </button>
+            </div>
+
+            {/* Chunk Progress */}
+            {(processing || processingAll) && chunkProgress.total > 0 && (
+              <div className="mt-4 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-400">
+                    Processing chunks: {chunkProgress.current}/{chunkProgress.total}
+                  </span>
+                  <span className="text-sm font-semibold text-indigo-400">
+                    {Math.round((chunkProgress.current / chunkProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-300"
+                    style={{ width: `${(chunkProgress.current / chunkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Processed Script Section */}
@@ -274,16 +489,38 @@ export default function ProcessModal({
 
         {/* Footer */}
         <div className="p-6 border-t border-slate-700/50 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-6 py-3 border border-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-800/50 transition-all font-semibold"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-6 py-3 border border-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-800/50 transition-all font-semibold"
+            >
+              Close
+            </button>
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrevious}
+                disabled={currentIndex === 0 || processingAll}
+                className="p-3 border border-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-800/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Previous"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={currentIndex === schedule.length - 1 || processingAll}
+                className="p-3 border border-slate-700/50 text-gray-300 rounded-xl hover:bg-slate-800/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Next"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
 
           <button
             onClick={handleSubmitAndNext}
-            disabled={!processedScript.trim()}
+            disabled={!processedScript.trim() || processingAll}
             className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
           >
             {currentIndex < schedule.length - 1 ? (

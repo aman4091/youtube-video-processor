@@ -50,6 +50,7 @@ export default function SettingsPage() {
   const [youtubeApiKey, setYoutubeApiKey] = useState('');
   const [telegramBotToken, setTelegramBotToken] = useState('');
   const [telegramChatId, setTelegramChatId] = useState('');
+  const [deepseekApiKey, setDeepseekApiKey] = useState('');
   const [supadataKeys, setSupadataKeys] = useState<SupadataApiKey[]>([]);
   const [newSupadataKey, setNewSupadataKey] = useState('');
 
@@ -87,6 +88,7 @@ export default function SettingsPage() {
       setYoutubeApiKey(sharedSettings.youtube_api_key || '');
       setTelegramBotToken(sharedSettings.telegram_bot_token || '');
       setTelegramChatId(sharedSettings.telegram_chat_id || '');
+      setDeepseekApiKey(sharedSettings.deepseek_api_key || '');
       setSupadataKeys(apiKeys);
       setPythonScripts(scriptsData.scripts || []);
     } catch (error) {
@@ -214,6 +216,7 @@ export default function SettingsPage() {
         updateSharedSetting('youtube_api_key', youtubeApiKey),
         updateSharedSetting('telegram_bot_token', telegramBotToken),
         updateSharedSetting('telegram_chat_id', telegramChatId),
+        updateSharedSetting('deepseek_api_key', deepseekApiKey),
       ]);
       console.log('Save results:', results);
       const allSuccess = results.every(r => r === true);
@@ -741,6 +744,22 @@ export default function SettingsPage() {
                   className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
                   placeholder="123456789"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-3">
+                  DeepSeek API Key
+                </label>
+                <input
+                  type="password"
+                  value={deepseekApiKey}
+                  onChange={(e) => setDeepseekApiKey(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white font-mono text-sm focus:ring-2 focus:ring-indigo-500 transition-all"
+                  placeholder="sk-••••••••••••••••••"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Used for auto-processing transcripts into scripts
+                </p>
               </div>
 
               <button
